@@ -1,0 +1,9 @@
+tunnel: 30c4d639-b76a-44d5-be62-89d4a39384bd
+credentials-file: C:\Users\Lenovo\.cloudflared\30c4d639-b76a-44d5-be62-89d4a39384bd.json
+
+ingress:
+  - hostname: sbcc.my.id
+    service: http://127.0.0.1:8000
+    originRequest:
+      connectTimeout: 30s
+  - service: http_status:404
