@@ -8,6 +8,7 @@ use App\Models\Peserta;
 use App\Models\PrintLog;
 use App\Models\Sekolah;
 use App\Models\Setting;
+use App\Models\StempelLegalisir;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
@@ -18,6 +19,18 @@ use Illuminate\Support\Str;
  */
 class LayananCetak
 {
+    public const MAKS_COPY_LEGALISIR = 20;
+
+    /**
+     * Jumlah copy legalisir dari Pengaturan (default 2, dibatasi 1..20).
+     */
+    public static function jumlahCopyLegalisir(): int
+    {
+        $nilai = (int) Setting::getValue('legalisir_jumlah_copy', 2);
+
+        return max(1, min(self::MAKS_COPY_LEGALISIR, $nilai > 0 ? $nilai : 2));
+    }
+
     /**
      * Cetak sertifikat peserta (satuan maupun bulk).
      *
@@ -91,6 +104,100 @@ class LayananCetak
         );
 
         return $pdf->stream('sertifikat-juara-'.now()->format('Ymd-His').'.pdf');
+    }
+
+    /**
+     * Cetak legalisir sertifikat peserta: hitam putih, satu stempel, dan
+     * sejumlah copy sesuai Pengaturan.
+     *
+     * @param  Collection<int, Peserta>  $pesertas
+     */
+    public function legalisir(
+        Collection $pesertas,
+        StempelLegalisir $stempel,
+        ?int $userId = null,
+    ): Response {
+        abort_if($pesertas->isEmpty(), 422, 'Tidak ada peserta untuk dicetak.');
+        abort_if(! $stempel->aktif, 422, 'Stempel legalisir tidak aktif.');
+        abort_if($stempel->pathGambar() === null, 422, 'Gambar stempel legalisir tidak ditemukan.');
+
+        $blangko = Blangko::aktif(Blangko::JENIS_SERTIFIKAT);
+        $lebar = (float) ($blangko?->lebar_mm ?? 297);
+        $tinggi = (float) ($blangko?->tinggi_mm ?? 210);
+
+        abort_if(
+            $stempel->x_mm + $stempel->lebar_mm > $lebar + 0.01
+            || $stempel->y_mm + $stempel->tinggi_mm > $tinggi + 0.01,
+            422,
+            'Posisi stempel melewati batas halaman sertifikat. Perbarui posisi stempel.'
+        );
+
+        $copy = self::jumlahCopyLegalisir();
+
+        if ($blangko) {
+            $halaman = [];
+
+            foreach ($pesertas as $peserta) {
+                $varian = BlangkoRenderer::varianUntuk($peserta->kelompok_usia);
+
+                $isi = $blangko->pakaiBlade()
+                    ? BlangkoRenderer::renderBlade(
+                        $blangko,
+                        BlangkoRenderer::dataPeserta($peserta),
+                        $varian,
+                        [],
+                        $this->kop(),
+                    )
+                    : BlangkoRenderer::render(
+                        $blangko,
+                        BlangkoRenderer::dataPeserta($peserta),
+                        $blangko->pathGambar(),
+                        $varian,
+                    );
+
+                for ($i = 0; $i < $copy; $i++) {
+                    $halaman[] = $isi;
+                }
+            }
+
+            $html = $this->dokumenLegalisir($blangko, $halaman, $stempel);
+            $pdf = Pdf::loadHTML(LegalisirRenderer::grayscaleHtml($html));
+        } else {
+            $data = [];
+
+            foreach ($pesertas as $peserta) {
+                $satu = $this->dataSertifikat($peserta);
+
+                for ($i = 0; $i < $copy; $i++) {
+                    $data[] = $satu;
+                }
+            }
+
+            $html = view('pdf.sertifikat-peserta', [
+                'pesertas' => $data,
+                'kop' => $this->kop(),
+                'background' => Setting::pathGambar(Setting::getValue('background_sertifikat')),
+                'legalisir' => true,
+                'stempel' => $this->dataStempel($stempel),
+            ])->render();
+
+            $pdf = Pdf::loadHTML(LegalisirRenderer::grayscaleHtml($html))
+                ->setPaper('a4', 'landscape');
+        }
+
+        $this->catatCetak(
+            jenis: 'legalisir',
+            jumlah: $pesertas->count(),
+            konteks: $pesertas->pluck('nama')->implode(', ').' · '.$copy.' copy · stempel '.$stempel->nama,
+            userId: $userId,
+            pesertaId: $pesertas->count() === 1 ? $pesertas->first()->id : null,
+            kontingenId: $pesertas->count() === 1 ? $pesertas->first()->kontingen_id : null,
+            jumlahCopy: $copy,
+        );
+
+        $namaStempel = Str::slug($stempel->nama) ?: 'stempel';
+
+        return $pdf->stream('legalisir-'.$namaStempel.'-'.now()->format('Ymd-His').'.pdf');
     }
 
     /**
@@ -336,6 +443,81 @@ class LayananCetak
     }
 
     /**
+     * Bungkus halaman legalisir (kanvas atau Blade) + satu stempel.
+     *
+     * @param  list<string>  $halaman
+     */
+    private function dokumenLegalisir(Blangko $blangko, array $halaman, StempelLegalisir $stempel): string
+    {
+        $css = '@page { size: '.$blangko->lebar_mm.'mm '.$blangko->tinggi_mm.'mm; margin: 0; }'
+            .' html, body { margin:0; padding:0; background:#fff; }'
+            .' .legalisir-halaman { position:relative; width:'.$blangko->lebar_mm.'mm; height:'.$blangko->tinggi_mm.'mm; overflow:hidden; page-break-after:always; }'
+            .' .legalisir-halaman:last-child { page-break-after:auto; }'
+            .' .legalisir-grayscale { position:absolute; top:0; left:0; width:100%; height:100%; }'
+            .LegalisirRenderer::cssGrayscale()
+            .' .stempel-legalisir { position:absolute; z-index:9999; }';
+
+        $html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'.$css.'</style></head><body>';
+
+        foreach ($halaman as $isi) {
+            $html .= '<div class="legalisir-halaman">'
+                .'<div class="legalisir-grayscale">'.$isi.'</div>'
+                .$this->stempelHtml($stempel)
+                .'</div>';
+        }
+
+        return $html.'</body></html>';
+    }
+
+    /**
+     * Tag gambar stempel. Atribut data-stempel-legalisir membuat renderer
+     * grayscale tidak mengubah warna stempel.
+     */
+    private function stempelHtml(StempelLegalisir $stempel): string
+    {
+        $path = $stempel->pathGambar();
+
+        if ($path === null) {
+            return '';
+        }
+
+        return sprintf(
+            '<img src="%s" class="stempel-legalisir" data-stempel-legalisir="1" alt=""'
+            .' style="left:%smm; top:%smm; width:%smm; height:%smm;">',
+            e(str_replace('\\', '/', $path)),
+            $this->mm($stempel->x_mm),
+            $this->mm($stempel->y_mm),
+            $this->mm($stempel->lebar_mm),
+            $this->mm($stempel->tinggi_mm),
+        );
+    }
+
+    /**
+     * Data stempel untuk template PDF bawaan.
+     *
+     * @return array<string, string>
+     */
+    private function dataStempel(StempelLegalisir $stempel): array
+    {
+        return [
+            'nama' => $stempel->nama,
+            'gambar' => str_replace('\\', '/', (string) $stempel->pathGambar()),
+            'x_mm' => $this->mm($stempel->x_mm),
+            'y_mm' => $this->mm($stempel->y_mm),
+            'lebar_mm' => $this->mm($stempel->lebar_mm),
+            'tinggi_mm' => $this->mm($stempel->tinggi_mm),
+        ];
+    }
+
+    /**
+     * Format milimeter tanpa nol desimal yang tidak perlu.
+     */
+    private function mm(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
+    }
+
+    /**
      * Baris tabel juara untuk SK (dipakai kanvas & template Blade).
      *
      * @param  Collection<int, Peserta>  $items
@@ -413,6 +595,7 @@ class LayananCetak
         ?int $officialId = null,
         ?int $kontingenId = null,
         ?string $nomorSk = null,
+        ?int $jumlahCopy = null,
     ): void {
         PrintLog::create([
             'user_id' => $userId,
@@ -421,6 +604,7 @@ class LayananCetak
             'official_id' => $officialId,
             'kontingen_id' => $kontingenId,
             'jumlah_data' => $jumlah,
+            'jumlah_copy' => max(1, $jumlahCopy ?? 1),
             'nomor_sk' => $nomorSk,
             'konteks' => mb_substr($userId === null ? '[TAMU] '.$konteks : $konteks, 0, 500),
         ]);

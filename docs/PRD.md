@@ -3,10 +3,10 @@
 | Field | Nilai |
 |---|---|
 | Nama Produk | Sistem Cetak Sertifikat (SCS) |
-| Versi Dokumen | 1.4 |
-| Tanggal | 23 Oktober 2026 |
+| Versi Dokumen | 1.6 |
+| Tanggal | 28 Oktober 2026 |
 | Status | Draft untuk review |
-| Dokumen Terkait | `INDEX.md`, `TRD.md`, `DB_SCHEMA.md` |
+| Dokumen Terkait | `INDEX.md`, `TRD.md`, `DB_SCHEMA.md`, `LEGALISIR_PLAN.md` |
 
 ---
 
@@ -19,6 +19,7 @@ Dokumen yang dapat dicetak:
 1. **Sertifikat Juara Peserta** — dipilih dari daftar peserta (bisa satu atau beberapa sekaligus/batch, satu halaman per peserta).
 2. **SK Juara (Surat Keputusan)** — surat resmi per peserta juara; satu peserta = satu halaman SK; nomor SK dibaca dari data peserta (input manual panitia, boleh kosong).
 3. **Sertifikat Coach / Official** — cukup input nama + pilih kontingen dari dropdown (kontingen yang sudah terdaftar).
+4. **Sertifikat Legalisir** — versi hitam putih sertifikat peserta dengan satu stempel legalisir berwarna, dapat dicetak beberapa copy.
 
 Deployment: dijalankan **di komputer lokal (panitia)**, lalu dipublikasikan ke internet via **Cloudflare Tunnel**, sehingga panitia di lokasi lain bisa mengakses melalui HTTPS.
 
@@ -41,7 +42,7 @@ Praktik umum panitia kejuaraan saat ini:
 
 Metode **S.M.A.R.T** — *Specific* (spesifik apa yang harus dicapai), *Measurable* (angka yang bisa diukur), *Achievable* (mampu dicapai dengan desain yang ada), *Relevant* (bernilai bagi panitia), *Time-bound* (ada tenggat yang jelas).
 
-**Tujuan dipecah per fase implementasi** (mengikuti Implementation Plan §11.2), sehingga validasi dilakukan **saat fase ditutup**, bukan hanya di akhir proyek. Setiap fase punya tabel SMART tersendiri; kode tujuannya (`G-P0` s/d `G-P7.1`) dirujuk balik di §11.2.
+**Tujuan dipecah per fase implementasi** (mengikuti Implementation Plan §11.2), sehingga validasi dilakukan **saat fase ditutup**, bukan hanya di akhir proyek. Setiap fase punya tabel SMART tersendiri; kode tujuannya (`G-P0` s/d `G-P8.1`) dirujuk balik di §11.2.
 
 ### 3.1 Fase P0 — Setup & Fondasi (Hari 1–2)
 
@@ -99,6 +100,12 @@ Metode **S.M.A.R.T** — *Specific* (spesifik apa yang harus dicapai), *Measurab
 |---|---|---|---|---|---|
 | **G-P7.1** | Admin dapat mencetak **sertifikat ucapan terima kasih** untuk sekolah yang berpartisipasi | 100% sekolah yang ditambahkan muncul di daftar; setiap cetak menghasilkan PDF valid tanpa nomor sertifikat; jumlah cetak & waktu terakhir tercatat | Menu admin **Sertifikat Sekolah** + tabel `sekolahs`; blangko jenis **`sertifikat_sekolah`** terpisah dari blangko peserta; route cetak di grup `admin` | Sekolah mitra perlu bukti partisipasi; pencetakan tidak boleh tercampur dengan sertifikat peserta/juara | Aktif sejak 27 Oktober 2026 |
 
+### 3.9 Fase P8 — Legalisir Sertifikat Peserta (28 Oktober 2026)
+
+| ID | Specific (S) | Measurable (M) | Achievable (A) | Relevant (R) | Time-bound (T) |
+|---|---|---|---|---|---|
+| **G-P8.1** | Admin dapat mencetak sertifikat peserta versi **hitam putih + satu stempel legalisir**, dengan jumlah copy yang dapat diatur | 100% cetak legalisir menghasilkan PDF valid; jumlah halaman = peserta valid × copy; stempel berada pada posisi desain; copy default 2 dan bisa 3/4 dst.; 0 akses operator/tamu | Menu `/legalisir` + CRUD `/legalisir/stempel`; grayscale GD + CSS; overlay stempel absolut mm; setting `legalisir_jumlah_copy`; batas 50 peserta / 200 halaman | Panitia membutuhkan arsip legalisasi resmi tanpa mencetak ulang desain berwarna | Aktif sejak 28 Oktober 2026; 21 test legalisir hijau |
+
 ---
 
 ## 4. Ruang Lingkup
@@ -122,6 +129,7 @@ Metode **S.M.A.R.T** — *Specific* (spesifik apa yang harus dicapai), *Measurab
 | F-13 | **Varian teks otomatis**: satu blangko untuk sertifikat prestasi & pemasalan; versi dipilih otomatis dari kelompok usia peserta |
 | F-14 | **Blangko mode Blade**: template HTML/CSS sendiri, memakai variabel `$data`, `$kop`, `$varianTeks`, `$baris`, `$blangko`; sertifikat & SK dirender **satu halaman per peserta**; template SK contoh memakai `$data`, `$baris` tersedia untuk template tabel |
 | F-18 | **Sertifikat Sekolah** (khusus admin): daftar sekolah, tambah nama sekolah, status & jumlah cetak, serta cetak sertifikat ucapan terima kasih **tanpa nomor sertifikat** memakai blangko jenis `sertifikat_sekolah` yang terpisah dari blangko peserta |
+| F-19 | **Legalisir Sertifikat Peserta** (khusus admin): cetak sertifikat peserta hitam putih dengan satu stempel legalisir berwarna; desain stempel dapat dibuat banyak dengan satu posisi tetap per desain; jumlah copy dapat diatur (default 2); bulk maks 50 peserta / 200 halaman |
 
 ### 4.2 Out-of-Scope (Tidak dibuat di versi ini)
 
@@ -169,6 +177,7 @@ Prioritas: **M** = Must (MVP), **S** = Should, **C** = Could.
 | FR-16 | Varian sertifikat otomatis | Sebagai admin, saya ingin satu blangko untuk sertifikat prestasi dan pemasalan | Kelompok usia "Pra Usia Dini" & "Usia Dini 1" → varian **Pemasalan**; "Usia Dini 2", "Pra Remaja", "Remaja", "Dewasa" → varian **Prestasi**; daftar kelompok usia dapat diubah di Pengaturan | M |
 | FR-17 | Blangko mode Blade | Sebagai admin yang nyaman dengan HTML/CSS, saya ingin memakai file template sendiri | Saat membuat blangko, pilih **Mode Blade** lalu pilih file `.blade.php` dari `resources/views/blangko/` (halaman admin tidak muncul); template menerima `$data`, `$kop`, `$varianTeks`, `$baris` (SK), `$blangko`; yang ditulis hanya isi halaman (satu `<div>` berukuran mm) — sistem menambahkan `@page` sesuai ukuran blangko; **sertifikat: satu render = satu peserta, bulk di-loop sistem**; **SK: satu render = satu halaman/peserta; template contoh memakai `$data`, `$baris` tersedia untuk template tabel**; file di luar folder ditolak | M |
 | FR-18 | Sertifikat Sekolah | Sebagai admin, saya ingin mencetak sertifikat ucapan terima kasih untuk sekolah yang berpartisipasi | Menu **Sertifikat Sekolah** hanya untuk admin; admin menambah sekolah cukup dengan **nama**; daftar menampilkan semua sekolah + status pernah dicetak, waktu terakhir, dan jumlah cetak; tombol **Cetak Sertifikat** membuka PDF di tab baru; sertifikat **tidak memakai nomor sertifikat**; memakai blangko jenis **`sertifikat_sekolah`** yang terpisah dari blangko peserta; bila belum ada blangko khusus, sistem memakai template bawaan berbasis `public/blangko-assets/sert-sekolah.jpg`; setiap cetak tercatat di riwayat dan menambah counter sekolah | M |
+| FR-19 | Legalisir Sertifikat Peserta | Sebagai admin, saya ingin mencetak sertifikat peserta versi hitam putih dengan stempel legalisir untuk arsip resmi | Menu **Legalisir** hanya untuk admin; peserta dipilih dari `/peserta` (bulk atau per baris); halaman `/legalisir` menampilkan peserta terpilih, pilihan **satu stempel aktif**, jumlah copy, dan total halaman; PDF **hitam putih** dengan **tepat satu stempel** pada posisi desain; **copy default 2** (1–20) diatur di Pengaturan; **maks 50 peserta** dan **200 halaman** per PDF; hanya sertifikat peserta (memakai blangko peserta aktif); nomor sertifikat mengikuti aturan lazy lama; log `legalisir` + `jumlah_copy`; operator/tamu ditolak | M |
 
 ---
 
@@ -216,22 +225,27 @@ flowchart LR
         K[Kontingen] --> P[Peserta + Juara]
         K --> O[Official/Coach]
         SEK[Sekolah]
+        STM[Stempel Legalisir]
     end
     subgraph Pengaturan
-        S[Identitas kejuaraan, logo, background, teks template, penandatangan]
+        S[Identitas kejuaraan, logo, background, teks template, penandatangan, copy legalisir]
     end
     P -->|tercentang| C1[Sertifikat PDF + nomor lazy]
     P -->|tercentang| C2["SK PDF (nomor dari data)"]
+    P -->|tercentang| C5[Legalisir PDF hitam putih + stempel]
     O --> C3[Sertifikat Official PDF]
     SEK -->|nama sekolah| C4[Sertifikat Sekolah PDF tanpa nomor]
+    STM --> C5
     S --> C1
     S --> C2
     S --> C3
     S --> C4
+    S --> C5
     C1 --> L[Log Cetak]
     C2 --> L
     C3 --> L
     C4 --> L
+    C5 --> L
 ```
 
 ### 7.4 Flow 4 — Sertifikat Sekolah (Admin)
@@ -245,6 +259,23 @@ flowchart TD
     D -->|Tidak| F[Klik Cetak Sertifikat pada baris sekolah]
     F --> G[PDF ucapan terima kasih, tanpa nomor sertifikat]
     G --> H[Log cetak + counter & waktu terakhir dicetak diperbarui]
+```
+
+### 7.5 Flow 5 — Legalisir Sertifikat Peserta (Admin)
+
+```mermaid
+flowchart TD
+    A[Login Admin] --> B[Peserta & Juara]
+    B --> C[Centang peserta]
+    C --> D[Klik Legalisir]
+    D --> E[/legalisir?ids[]=...]
+    E --> F[Pilih 1 stempel aktif]
+    F --> G[Lihat copy & total halaman]
+    G --> H{Peserta valid & batas aman?}
+    H -->|Tidak| I[Pesan: tanpa juara / stempel kosong / melebihi batas]
+    H -->|Ya| J[Cetak Legalisir]
+    J --> K[PDF hitam putih + stempel, tab baru]
+    K --> L[Log legalisir + jumlah_copy]
 ```
 
 ---
@@ -278,6 +309,7 @@ flowchart TD
 10. **Tata letak blangko disimpan dalam milimeter** — koordinat yang sama dipakai untuk preview di browser dan untuk PDF, sehingga yang terlihat di desainer = yang tercetak.
 11. **Blangko punya dua mode** — `canvas` (gambar + elemen teks lewat desainer) atau `blade` (file `.blade.php` di `resources/views/blangko/`). Mode dipilih saat membuat blangko dan bisa diubah lewat halaman Pengaturan. Template Blade **hanya menulis isi halaman**. **Ukuran kertas** dipilih dari preset **A4 / F4 / Letter / Custom** + orientasi; `lebar_mm`/`tinggi_mm` dihitung otomatis (landscape menukar) dan menjadi ukuran `@page` DOMPDF di kedua mode. File di luar folder `resources/views/blangko/` dan halaman admin (`index`, `form`, `desainer`, `preview`, `blade`) tidak boleh dipilih.
 12. **Sertifikat sekolah adalah dokumen terpisah** — hanya **Admin** yang dapat membuka daftar sekolah dan mencetaknya; sekolah cukup diinput dengan **nama** (unik); sertifikat **tidak memiliki nomor sertifikat**; blangko yang dipakai adalah jenis **`sertifikat_sekolah`**, bukan blangko sertifikat peserta/SK; daftar menampilkan semua sekolah beserta status pernah dicetak, waktu terakhir, dan jumlah cetak; setiap cetak menambah counter dan tercatat di riwayat cetak. Bila belum ada blangko `sertifikat_sekolah` yang aktif, sistem memakai template bawaan `pdf/sertifikat-sekolah` berbasis `public/blangko-assets/sert-sekolah.jpg`.
+13. **Legalisir adalah dokumen khusus admin** — hanya **sertifikat peserta** yang dapat dilegalisir, memakai **blangko peserta aktif** (fallback layout bawaan). Setiap sertifikat memakai **tepat satu stempel** dari desain yang dipilih; **satu desain stempel = satu posisi tetap** dalam milimeter dari sudut kiri atas. Jumlah copy per sertifikat diatur di Pengaturan (`legalisir_jumlah_copy`, default **2**, rentang **1–20**); total halaman = jumlah peserta valid × copy, dengan batas **50 peserta** dan **200 halaman** per PDF. Sertifikat dicetak **hitam putih**, sedangkan **stempel tetap berwarna**. Peserta tanpa keterangan juara dilewati (semua tanpa juara → ditolak); nomor sertifikat tetap mengikuti aturan lazy assignment. Setiap cetak mencatat `jenis_dokumen = 'legalisir'` dan `jumlah_copy`.
 
 ---
 
@@ -303,10 +335,12 @@ Rencana eksekusi pengembangan dari nol hingga siap dipakai di event. Asumsi 1 de
 | **M2 — Lengkap** | F-09 s/d F-11 (riwayat cetak, pengaturan dokumen, manajemen user), tuning template, polish UI, deploy tunnel | Hari 12–16 | P4–P5 |
 | **M3 — Ekstra** | FR-12 ekspor, template multi-desain, reset data musiman | Menyusul | — |
 | **P6 — Cetak Guest & Blangko** (tambahan) | FR-13 s/d FR-17: cetak tanpa login, desainer blangko, blangko mode Blade, varian otomatis | 22–23 Okt 2026 | Selesai |
+| **P7 — Sertifikat Sekolah** (tambahan) | FR-18: daftar sekolah + sertifikat ucapan terima kasih tanpa nomor | 27 Okt 2026 | Selesai |
+| **P8 — Legalisir** (tambahan) | FR-19: legalisir hitam putih + stempel, copy, batas cetak | 28 Okt 2026 | Selesai |
 
 ### 11.2 Rencana Detail per Fase
 
-> Fase di tabel ini **satu-satu memvalidasi tujuan SMART** yang dijabarkan di **§3** (kode `G-P0` s/d `G-P7.1`); kolom *Definition of Done* = prasyarat teknis berikut rujukan kode goal & kasus uji (TRD §12).
+> Fase di tabel ini **satu-satu memvalidasi tujuan SMART** yang dijabarkan di **§3** (kode `G-P0` s/d `G-P8.1`); kolom *Definition of Done* = prasyarat teknis berikut rujukan kode goal & kasus uji (TRD §12).
 
 | Fase | Durasi | Aktivitas Utama | Deliverable | Definition of Done (Acceptance & Goal) |
 |---|---|---|---|---|
@@ -317,6 +351,7 @@ Rencana eksekusi pengembangan dari nol hingga siap dipakai di event. Asumsi 1 de
 | **P4 — Pengaturan, Log, User, Dashboard** ✅ | Hari 12–14 | Pengaturan dokumen (FR-10, upload logo/background); riwayat cetak + filter (FR-09); manajemen user (FR-11); dashboard ringkas (FR-02); semua placeholder (`{NOMOR_SERTIFIKAT}` dsb.) dibaca dari pengaturan; polish UI | Fitur pendukung lengkap | UT-08 lulus; 100% cetak meninggalkan baris log; perubahan logo/background langsung terlihat tanpa deploy → **G-P4** |
 | **P5 — Deploy, Hardening, UAT** ⏳ | Hari 15–16 | Laragon/Apache sebagai service; named tunnel `cloudflared` + `TRUSTED_PROXIES`; `.env` produksi + cookie secure; checklist keamanan TRD §9; backup `mysqldump`; UAT terhadap tujuan SMART per fase (§3) | Sistem live di URL Cloudflare (HTTPS) | UT-09 lulus dari perangkat luar; uptime ≥ 99% & 0 akses tanpa login; 0 typo pada sampel 100 dokumen; rekap semua goal G-P0 s/d G-P4 tertandai lulus; backup restore diuji 1× → **G-P5.1 & G-P5.2** |
 | **P6 — Cetak Guest & Blangko** ✅ | 1 sesi | Cetak tanpa login (tamu): daftar peserta 15/halaman + pencarian + PDF sertifikat/SK/official + rate limit; blangko **dua mode**: desainer kanvas drag & drop (sertifikat & SK) **atau** file Blade dari `resources/views/blangko/`; varian teks otomatis berdasarkan kelompok usia | Halaman `/cetak` untuk tamu, menu **Blangko & Teks** untuk admin | Cetak tamu menghasilkan PDF valid; request ke-31/jam → 429; elemen blangko tersimpan di koordinat mm yang sama dengan PDF; template Blade di luar folder ditolak & preview = PDF; varian Usia Dini 1 → Pemasalan, Dewasa → Prestasi → **G-P6.1, G-P6.2, G-P6.3, G-P6.4** |
+| **P8 — Legalisir** ✅ | 1 sesi | Menu admin `/legalisir` + CRUD stempel; pilih peserta/stempel/copy; PDF hitam putih + overlay stempel; grayscale GD + CSS; setting copy; log copy | Halaman legalisir, editor stempel + preview, PDF legalisir | 21 test legalisir hijau; PDF 2 copy = 2 halaman; 2 peserta × 3 copy = 6 halaman; batas 50/200; stempel nonaktif/gambar hilang/di luar halaman ditolak; operator/tamu ditolak → **G-P8.1** |
 
 ### 11.3 Definition of Done Global (berlaku tiap fase)
 
@@ -336,7 +371,7 @@ Rencana eksekusi pengembangan dari nol hingga siap dipakai di event. Asumsi 1 de
 
 ### 11.5 Status Implementasi & Bukti Validasi
 
-Diperbarui: **27 Oktober 2026** — fase **P0, P1, P2, P3, P4, P6, dan P7 selesai**; **P5 berjalan sebagian**: **Named Tunnel aktif di `https://sbcc.my.id`**, tinggal Cloudflare Access, uji dari perangkat luar, dan UAT cetak fisik. Checklist lengkap: [`UAT_P5.md`](UAT_P5.md).
+Diperbarui: **28 Oktober 2026** — fase **P0, P1, P2, P3, P4, P6, P7, dan P8 selesai**; **P5 berjalan sebagian**: **Named Tunnel aktif di `https://sbcc.my.id`**, tinggal Cloudflare Access, uji dari perangkat luar, dan UAT cetak fisik. Checklist lengkap: [`UAT_P5.md`](UAT_P5.md).
 
 | Fase | Status | Bukti Validasi | Catatan |
 |---|---|---|---|
@@ -348,14 +383,17 @@ Diperbarui: **27 Oktober 2026** — fase **P0, P1, P2, P3, P4, P6, dan P7 selesa
 | **P5 — Deploy & UAT** | 🟡 **Sebagian** | **Named Tunnel aktif di `https://sbcc.my.id`** (Cloudflare, domain `sbcc.my.id`, tunnel `sertifikat`, config `tools/cloudflared-named.yml`): `/up`, `/login`, `/cetak` → 200; request HTTP → **301 ke HTTPS** (middleware `ForceHttps`); login admin via HTTPS → `/dashboard` 200 dengan cookie `Secure` + `SameSite=Lax`; `/blangko` & `/blangko/5/preview` → 200; **PDF tamu** 508.228 byte `%PDF-`; **PDF bulk 3 peserta = 3 halaman** 509.207 byte; akses `/dashboard` tanpa login → 302; 4 koneksi tunnel terdaftar; sertifikat TLS `CN=sbcc.my.id` (Let's Encrypt via Cloudflare); script `tools/p5-start-named.ps1` + `tools/p5-stop.ps1` berfungsi; Quick Tunnel (`tools/p5-start.ps1`) tetap tersedia sebagai fallback | **Belum:** Cloudflare Access untuk area admin, uji UT-09 dari HP di luar jaringan, cetak fisik A4/F4, cek typo 100 dokumen, alignment TTD/stempel, backup/restore. Detail & sign-off: [`UAT_P5.md`](UAT_P5.md) |
 | **P6 — Cetak Guest & Blangko** | ✅ **Selesai** | Halaman tamu `/cetak` (daftar 15/halaman + pencarian nama, tombol Sertifikat & SK per peserta) & `/cetak/official` (nama + dropdown kontingen + jabatan) tanpa login → PDF valid (488 KB); rate limit 30 PDF/jam/IP (request ke-31 → 429) teruji; blangko **dua mode**: (a) **kanvas** — upload gambar, drag & drop kotak teks, simpan posisi/ukuran mm, **edit & hapus elemen** lewat panel Daftar Elemen, preview, varian teks; (b) **Blade** — pilih file `.blade.php` dari `resources/views/blangko/`, editor menampilkan variabel + isi file, preview & PDF memakai template yang sama; template di luar folder ditolak (422); contoh `contoh-sertifikat` (landscape) & `contoh-sk` (portrait) berhasil dicetak; **ukuran kertas A4/F4/Letter/Custom** dengan dimensi mm otomatis & `@page` mengikuti ukuran (diuji lewat `MediaBox` PDF); varian otomatis: Usia Dini 1 → Pemasalan, Dewasa → Prestasi | 3 tabel baru (`blangkos`, `blangko_elemen`, `teks_varians`) + kolom `pesertas.kelompok_usia`, `blangkos.mode`, `blangkos.view_blade`, `blangkos.ukuran_kertas`; `print_logs.user_id` jadi nullable (tamu); route baru `blangko.form` (`/blangko/{id}/pengaturan`) |
 | **P7 — Sertifikat Sekolah** | ✅ **Selesai** | Menu admin **Sertifikat Sekolah** (`/sekolah`); tambah sekolah cukup nama; daftar semua sekolah + status pernah dicetak, waktu terakhir, jumlah cetak; cetak PDF ucapan terima kasih **tanpa nomor** di tab baru; blangko jenis **`sertifikat_sekolah`** terpisah dari blangko peserta; fallback `pdf/sertifikat-sekolah` berbasis `public/blangko-assets/sert-sekolah.jpg`; log cetak `sertifikat_sekolah` + counter; `SekolahTest` **11 test / 42 assertion** | Tabel `sekolahs`; kolom `blangkos.jenis` & `print_logs.jenis_dokumen` diubah dari ENUM ke VARCHAR agar jenis dokumen baru tidak perlu migrasi enum; route `/sekolah`, `/sekolah` (POST), `/cetak/sertifikat/sekolah/{sekolah}`; menu sidebar **Sertifikat Sekolah** |
+| **P8 — Legalisir** | ✅ **Selesai** | Menu admin **Legalisir** (`/legalisir`) + **Stempel Legalisir** (`/legalisir/stempel`); pilih peserta, satu stempel aktif, copy default 2; PDF hitam putih + stempel berwarna; grayscale GD + CSS; fallback layout peserta; log `legalisir` + `jumlah_copy`; batas 50 peserta / 200 halaman; `LegalisirTest` **21 test / 72 assertion** | Tabel `stempel_legalisirs`; kolom `print_logs.jumlah_copy`; setting `legalisir_jumlah_copy`; route `/legalisir`, `/legalisir/cetak`, `/legalisir/stempel*`; menu sidebar **Legalisir**; tombol bulk/per-baris di `/peserta` |
 
-**Ringkasan validasi teknis (P0-P4, P6, P7):** `123/123` test otomatis hijau (**461 assertion**), `Laravel Pint` style check lolos, `node --check public/js/blangko.js` lolos, dan **uji alur nyata via HTTP** (login → unduh PDF `application/pdf` 489 KB → halaman peserta; tamu → daftar → PDF sertifikat → PDF coach; admin → desainer → edit elemen (JSON `ok:true`) → preview → hapus elemen (JSON `ok:true`) → PDF dengan blangko; blangko Blade → preview → PDF; admin → daftar sekolah → tambah sekolah → PDF sertifikat sekolah) berhasil. Daftar lengkap test: TRD §12.
+**Ringkasan validasi teknis (P0-P4, P6, P7, P8):** `144/144` test otomatis hijau (**533 assertion**), `Laravel Pint` style check lolos, `node --check public/js/blangko.js` lolos, dan **uji alur nyata via HTTP** (login → unduh PDF `application/pdf` 489 KB → halaman peserta; tamu → daftar → PDF sertifikat → PDF coach; admin → desainer → edit elemen (JSON `ok:true`) → preview → hapus elemen (JSON `ok:true`) → PDF dengan blangko; blangko Blade → preview → PDF; admin → daftar sekolah → tambah sekolah → PDF sertifikat sekolah) berhasil. **Legalisir** diverifikasi lewat `LegalisirTest` (PDF hitam putih + stempel, copy, grayscale); uji cetak fisik stempel masih menunggu. Daftar lengkap test: TRD §12.
 
 **Validasi P5 (23 Oktober 2026):** **Named Tunnel** dijalankan dengan `tools/p5-start-named.ps1` untuk `https://sbcc.my.id`; `/up`, `/login`, `/cetak` 200; HTTP → 301 HTTPS; login admin via HTTPS berhasil (cookie `Secure`); `/dashboard`, `/blangko`, preview 200; PDF tamu & bulk 3 halaman valid; 4 koneksi tunnel terdaftar; `tools/p5-stop.ps1` menghentikan server + tunnel dengan bersih. Cloudflare Access dan UAT cetak fisik masih menunggu — lihat [`UAT_P5.md`](UAT_P5.md).
 
-**Validasi P7 (27 Oktober 2026):** `SekolahTest` **11 test / 42 assertion** hijau; admin dapat melihat daftar, menambah sekolah (nama saja), menolak duplikat, mencetak PDF tanpa blangko khusus, memakai blangko `sertifikat_sekolah` yang terpisah, dan log `sertifikat_sekolah` tampil di Riwayat Cetak; operator & tamu ditolak (403/redirect). Suite penuh **123/123** hijau (**461 assertion**), Pint lolos.
+**Validasi P7 (27 Oktober 2026):** `SekolahTest` **11 test / 42 assertion** hijau; admin dapat melihat daftar, menambah sekolah (nama saja), menolak duplikat, mencetak PDF tanpa blangko khusus, memakai blangko `sertifikat_sekolah` yang terpisah, dan log `sertifikat_sekolah` tampil di Riwayat Cetak; operator & tamu ditolak (403/redirect). Saat penutupan P7, suite penuh **123/123** hijau (**461 assertion**), Pint lolos; setelah P8 menjadi **144/144** (**533 assertion**).
 
-**Bug yang ditemukan & diperbaiki saat validasi P0–P4** (semua sudah tertutup dan ada test-nya):
+**Validasi P8 (28 Oktober 2026):** `LegalisirTest` **21 test / 72 assertion** hijau; admin dapat membuka halaman legalisir, memilih peserta & stempel, mencetak PDF hitam putih dengan stempel berwarna, mengatur copy (default 2, uji 3 → 6 halaman untuk 2 peserta), serta CRUD stempel termasuk validasi posisi. Operator & tamu ditolak; peserta tanpa juara dilewati/ditolak; batas 50 peserta & 200 halaman diuji; grayscale GD diverifikasi R=G=B dan tag stempel tidak diubah. Suite penuh **144/144** hijau (**533 assertion**), Pint lolos.
+
+**Bug yang ditemukan & diperbaiki saat validasi P0–P8** (semua sudah tertutup dan ada test-nya):
 
 1. **Route model binding gagal diam-diam** — `Str::singular('peserta')` di Laravel menghasilkan **`pesertum`** (aturan inflector Latin `-a` → `-um`, seperti `data` → `datum`), sehingga `Route::resource('peserta')` membuat parameter `{pesertum}` yang tidak cocok dengan variabel `$peserta` → controller menerima model **kosong** tanpa error. Perbaikan: `->parameters(['peserta' => 'peserta'])`. *Lesson: selalu cek `php artisan route:list` setelah menambah resource route.*
 2. **Filter juara salah** — `when()` menerima **boolean** sehingga callback menerima `true`, bukan nilai filter → `where('juara', true)` ter-eksekusi sebagai `juara = 1`. Perbaikan: `when($filters['juara'] ?? null, ...)` menerima nilai filter langsung.
@@ -376,6 +414,9 @@ Diperbarui: **27 Oktober 2026** — fase **P0, P1, P2, P3, P4, P6, dan P7 selesa
 17. **Template SK Blade bocor ke halaman kedua** — `height: 297mm` + `padding: 18mm` tanpa dukungan `box-sizing` DOMPDF membuat tinggi efektif 333 mm. Perbaikan: template contoh memakai posisi absolut di dalam halaman berukuran tetap (isi tidak menambah tinggi halaman).
 18. **Ukuran blangko terpaku A4** — mode kanvas memakai `@page { size: A4 ... }`, sehingga pilihan F4/Letter tidak berpengaruh. Perbaikan: `@page` mode kanvas memakai `lebar_mm × tinggi_mm` dari blangko. Catatan: template Blade yang menulis `@page`/ukuran sendiri (mis. `contoh-sbcc` versi lama) tetap menimpa ukuran sistem; kontrak template melarang menulis `@page` agar ukuran selalu mengikuti pengaturan blangko.
 19. **Folder `public/blangko` menutupi route `/blangko`** — keberadaan direktori fisik membuat `artisan serve`/Apache tidak meneruskan `/blangko` ke Laravel (404). Perbaikan: direktori diubah nama menjadi `public/blangko-assets` dan 4 referensi gambar di `contoh-sbcc.blade.php` disesuaikan; aset tetap dapat diakses di `/blangko-assets/sbckc2.jpg`.
+20. **DOMPDF tidak mendukung CSS `filter: grayscale()`** — rencana awal mengandalkan filter CSS, tetapi hasil PDF tetap berwarna. Perbaikan: konversi gambar lokal ke PNG grayscale memakai GD (`LegalisirRenderer`) dan paksa warna teks/border/background lewat CSS; cache di `storage/app/legalisir`.
+21. **Stempel ikut menjadi hitam putih** — konversi grayscale awal mengenai semua `<img>`, termasuk stempel. Perbaikan: tag stempel diberi `data-stempel-legalisir="1"` dan dikecualikan dari pemindaian; stempel ditempatkan di luar wrapper grayscale.
+22. **Total halaman Riwayat Cetak tidak menghitung copy** — `SUM(jumlah_data)` membuat legalisir 2 copy tampak 1 halaman. Perbaikan: `SUM(jumlah_data * jumlah_copy)` dan tampilan `× N copy`; kolom baru default 1 agar log lama tetap benar.
 
 ---
 

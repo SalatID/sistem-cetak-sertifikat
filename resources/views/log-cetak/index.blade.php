@@ -19,6 +19,7 @@
             <option value="sk_juara" @selected($jenis === 'sk_juara')>SK Juara</option>
             <option value="sertifikat_official" @selected($jenis === 'sertifikat_official')>Sertifikat Official</option>
             <option value="sertifikat_sekolah" @selected($jenis === 'sertifikat_sekolah')>Sertifikat Sekolah</option>
+            <option value="legalisir" @selected($jenis === 'legalisir')>Legalisir</option>
         </select>
     </div>
 
@@ -64,11 +65,17 @@
                             'sk_juara' => 'SK Juara',
                             'sertifikat_official' => 'Sertifikat Official',
                             'sertifikat_sekolah' => 'Sertifikat Sekolah',
+                            'legalisir' => 'Legalisir',
                             default => $log->jenis_dokumen,
                         } }}
                     </td>
                     <td class="px-4 py-3 text-slate-600">{{ $log->nomor_sk ?? '—' }}</td>
-                    <td class="px-4 py-3 text-center text-slate-600">{{ $log->jumlah_data }}</td>
+                    <td class="px-4 py-3 text-center text-slate-600">
+                        {{ $log->jumlah_data }}
+                        @if ($log->jenis_dokumen === 'legalisir' || $log->jumlah_copy > 1)
+                            <span class="block text-xs text-slate-400">× {{ $log->jumlah_copy }} copy</span>
+                        @endif
+                    </td>
                     <td class="px-4 py-3 text-slate-500">{{ $log->konteks ?? '—' }}</td>
                 </tr>
             @empty

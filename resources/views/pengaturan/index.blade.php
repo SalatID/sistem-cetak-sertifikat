@@ -91,6 +91,34 @@
             </div>
         </div>
 
+        {{-- Legalisir --}}
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="mb-1 font-semibold text-slate-900">Legalisir</h2>
+                    <p class="text-xs text-slate-500">
+                        Jumlah copy per sertifikat saat mencetak legalisir hitam putih.
+                        Total halaman = jumlah peserta × jumlah copy (maksimal 200 halaman per PDF).
+                    </p>
+                </div>
+                <a href="{{ route('legalisir.stempel.index') }}"
+                   class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    Kelola Stempel →
+                </a>
+            </div>
+
+            <div class="mt-4 max-w-xs">
+                <label for="legalisir_jumlah_copy" class="mb-1 block text-sm font-medium text-slate-700">
+                    Jumlah Copy Legalisir <span class="text-rose-500">*</span>
+                </label>
+                <input type="number" id="legalisir_jumlah_copy" name="legalisir_jumlah_copy"
+                       value="{{ old('legalisir_jumlah_copy', $values['legalisir_jumlah_copy'] ?? '2') }}"
+                       min="1" max="20" step="1" required
+                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none">
+                <p class="mt-1 text-xs text-slate-400">Default 2. Nilai yang diizinkan 1–20.</p>
+            </div>
+        </div>
+
         {{-- Template teks --}}
         <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
             <h2 class="mb-1 font-semibold text-slate-900">Template Teks Dokumen</h2>

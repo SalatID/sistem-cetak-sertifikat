@@ -4,7 +4,7 @@
 |---|---|
 | Proyek | Sistem Cetak Sertifikat (SCS) |
 | Fase | **P5 — Deploy, Hardening, UAT** |
-| Tanggal checklist | 23 Oktober 2026 |
+| Tanggal checklist | 23 Oktober 2026 (diperbarui 28 Oktober 2026) |
 | Lingkungan | Windows + Laragon (MySQL 8.0.30) + PHP 8.3.29 + `php artisan serve` port 8000 |
 | Tunnel | **Cloudflare Named Tunnel** — `https://sbcc.my.id` (tunnel `sertifikat`) |
 | Status | 🟡 **Sebagian** — HTTPS & alur aplikasi lolos; Cloudflare Access, uji dari perangkat luar, dan UAT cetak fisik menunggu |
@@ -17,7 +17,7 @@
 
 | Pemeriksaan | Hasil | Bukti |
 |---|---|---|
-| Test suite | ✅ **123/123 lulus, 461 assertion** | `php artisan test` |
+| Test suite | ✅ **144/144 lulus, 533 assertion** | `php artisan test` |
 | Filter kelompok usia `/peserta` | ✅ Opsi diambil dari nilai unik non-kosong; hasil filter & pagination tetap membawa query | `PesertaTest` (11 test, 43 assertion) |
 | Edit peserta: dropdown kelompok usia | ✅ Nilai lama huruf besar (`PRA REMAJA`) tetap terpilih sebagai `Pra Remaja` | `PesertaTest` |
 | Pint (gaya kode) | ✅ Lulus | `vendor/bin/pint --test` |
@@ -37,6 +37,9 @@
 | Pilihan background sertifikat (login) | ✅ Admin dapat memilih **Dengan/Tanpa background** untuk sertifikat peserta & official; default Dengan background; render lokal: tanpa background **1.423 byte / 0 image**, dengan background **508.234 byte / 1 image** | `CetakSertifikatTest`, `OfficialTest`, `BlangkoTest`; render `LayananCetak` peserta 257 |
 | Background cetak tamu | ✅ Tamu **selalu** memakai background; `pakai_background=0` diabaikan (live: 508.234 byte, sama dengan request default) | `CetakPublikTest`; `/cetak/peserta/257/sertifikat?pakai_background=0` |
 | Sertifikat sekolah (admin) | ✅ Daftar + tambah sekolah (nama unik), status/counter, PDF tanpa nomor, fallback `sert-sekolah.jpg`; operator/tamu ditolak; log `sertifikat_sekolah` tercatat | `SekolahTest` (11 test / 42 assertion) |
+| Legalisir (admin) | ✅ Halaman pilih peserta/stempel/copy, CRUD stempel + validasi posisi, PDF hitam putih + 1 stempel, copy default 2 / setting 3, batas 50 peserta & 200 halaman; operator/tamu ditolak | `LegalisirTest` (21 test / 72 assertion) |
+| Grayscale legalisir | ✅ Gambar berwarna menjadi R=G=B; tag stempel `data-stempel-legalisir` tidak diubah | `LegalisirTest` |
+| Riwayat cetak legalisir | ✅ Jenis `legalisir`, tampilan `× N copy`, total halaman `jumlah_data × jumlah_copy` | `LegalisirTest` |
 | Blangko jenis `sertifikat_sekolah` | ✅ Terpisah dari blangko peserta/SK; form blangko menerima jenis baru; preview sekolah memakai `NAMA SEKOLAH` | `SekolahTest`, `BlangkoTest` |
 | Bulk template Blade aktif | ✅ 2 peserta → **2 halaman**; nama PESERTA SATU & PESERTA DUA tampil | uji lokal `BlangkoTest` + render PDF `contoh-sbcc` |
 | SK bulk satu `no_sk` template Blade aktif | ✅ **2 halaman**; tiap halaman 1 peserta, nomor SK sama | uji lokal `BlangkoTest` + render PDF `contoh-sk-sbcc` |
@@ -54,7 +57,7 @@
 | Sertifikat TLS | ✅ `CN=sbcc.my.id` (Let's Encrypt via Cloudflare) | Pengecekan sertifikat HTTPS |
 | Script start/stop | ✅ Berfungsi | `tools/p5-start-named.ps1`, `tools/p5-stop.ps1` |
 
-Sesi validasi live terakhir: **27 Oktober 2026**, URL `https://sbcc.my.id`; SK tamu peserta 259 = **1 halaman** dengan format Nama/Juara/Pelaksanaan/Tempat; uji template Blade lokal: **25 Oktober 2026**; pilihan background sertifikat admin & pemaksaan background untuk tamu: **25 Oktober 2026**; fitur sertifikat sekolah: **27 Oktober 2026** (otomatis; uji live setelah migrasi).
+Sesi validasi live terakhir: **28 Oktober 2026**, URL `https://sbcc.my.id`; SK tamu peserta 259 = **1 halaman** dengan format Nama/Juara/Pelaksanaan/Tempat; uji template Blade lokal: **25 Oktober 2026**; pilihan background sertifikat admin & pemaksaan background untuk tamu: **25 Oktober 2026**; fitur sertifikat sekolah: **27 Oktober 2026** (otomatis; uji live setelah migrasi); fitur legalisir: **28 Oktober 2026** (otomatis; migrasi DB aplikasi sudah dijalankan, uji cetak fisik stempel masih menunggu).
 
 Konfigurasi produksi yang dipakai **hanya untuk proses server** (`.env` tidak diubah):
 
@@ -93,6 +96,7 @@ Legenda: ✅ = lulus (otomatis/terverifikasi), ⏳ = menunggu uji manual, ⚠️
 | UT-09 | Akses HTTPS dari HP di luar jaringan | Login normal, aset HTTPS, cookie Secure | ⏳ | Sudah diuji dari mesin ini lewat `https://sbcc.my.id`; **perlu 1 HP dengan data seluler** |
 | UT-10 | Hapus kontingen | Peserta/official ikut terhapus | ✅ | `KontingenTest` (cascade) |
 | UT-11 | Sertifikat sekolah: admin tambah sekolah & cetak | Sekolah tersimpan (nama unik), PDF tanpa nomor, status/counter & log tercatat; operator/tamu ditolak | ✅ | `SekolahTest` (11 test / 42 assertion) |
+| UT-12 | Legalisir 2 peserta, copy default 2 lalu copy 3 | PDF hitam putih + 1 stempel berwarna; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak | ✅ otomatis / ⏳ fisik | `LegalisirTest` (21 test / 72 assertion) |
 
 ---
 
@@ -109,11 +113,12 @@ Legenda: ✅ = lulus (otomatis/terverifikasi), ⏳ = menunggu uji manual, ⚠️
 | P5-07 | Start/stop deployment dapat diulang | ✅ | `tools/p5-start-named.ps1` → domain tetap; `tools/p5-stop.ps1` → port & tunnel berhenti |
 | P5-08 | Cetak fisik A4 & F4/Folio | ⏳ | **Perlu printer + kertas blanko asli**; cek margin, skala 100%, tidak terpotong |
 | P5-09 | Cek typo 100 dokumen | ⏳ | Sampel 100 PDF (nama, kategori, nomor, tanggal, tanda tangan) |
-| P5-10 | Alignment tanda tangan & stempel | ⏳ | Cetak 1 sertifikat + 1 SK, ukur posisi blok TTD |
+| P5-10 | Alignment tanda tangan & stempel | ⏳ | Cetak 1 sertifikat + 1 SK, ukur posisi blok TTD; **legalisir:** cetak 1 sertifikat, pastikan stempel tidak terpotong dan posisinya sesuai preview mm |
 | P5-11 | Backup & restore database | ⏳ | `mysqldump` + restore ke DB uji; belum dijalankan di P5 |
 | P5-12 | Named Tunnel + domain tetap | ✅ | `https://sbcc.my.id` (tunnel `sertifikat`, 4 koneksi, TLS valid) |
 | P5-13 | Cloudflare Access / WAF untuk area admin | ⏳ | **Belum diaktifkan**; disarankan sebelum URL dibagikan luas. Halaman `/cetak` harus tetap publik |
 | P5-14 | Autostart setelah reboot | ⏳ | Saat ini proses dijalankan manual lewat script; service/Task Scheduler belum dipasang |
+| P5-15 | Legalisir hitam putih + stempel | ✅ otomatis / ⏳ fisik | `LegalisirTest`: 2 copy = 2 halaman, 2 peserta × 3 copy = 6 halaman, grayscale R=G=B, stempel berwarna; cetak fisik & posisi stempel menunggu printer |
 
 ---
 
@@ -179,7 +184,7 @@ powershell -ExecutionPolicy Bypass -File tools/p5-stop.ps1
 ### 5.1 Langkah lanjutan yang disarankan
 
 1. Aktifkan **Always Use HTTPS** di Cloudflare Dashboard (pelengkap middleware `ForceHttps`).
-2. Aktifkan **Cloudflare Access** (email OTP) khusus area admin: `/dashboard`, `/peserta`, `/blangko`, `/pengaturan`, `/user`, `/log-cetak`. Halaman `/cetak` tetap publik.
+2. Aktifkan **Cloudflare Access** (email OTP) khusus area admin: `/dashboard`, `/peserta`, `/blangko`, `/pengaturan`, `/user`, `/log-cetak`, `/legalisir`, `/legalisir/stempel`. Halaman `/cetak` tetap publik.
 3. Pasang autostart (Windows Service untuk `cloudflared` + Laragon/Apache sebagai service) agar siap setelah reboot.
 4. Uji ulang UT-09 dari HP di luar jaringan.
 5. Lakukan UAT cetak fisik (P5-08..P5-10) dan backup/restore (P5-11).

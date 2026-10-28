@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'jenis_dokumen', 'peserta_id', 'official_id', 'kontingen_id', 'jumlah_data', 'nomor_sk', 'konteks'])]
+#[Fillable(['user_id', 'jenis_dokumen', 'peserta_id', 'official_id', 'kontingen_id', 'jumlah_data', 'jumlah_copy', 'nomor_sk', 'konteks'])]
 class PrintLog extends Model
 {
     public const UPDATED_AT = null;
@@ -20,6 +20,7 @@ class PrintLog extends Model
     {
         return [
             'jumlah_data' => 'integer',
+            'jumlah_copy' => 'integer',
             'created_at' => 'datetime',
         ];
     }

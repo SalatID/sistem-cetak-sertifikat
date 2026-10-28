@@ -26,6 +26,7 @@ class PengaturanRequest extends FormRequest
             'kota_ttd' => ['nullable', 'string', 'max:100'],
             'teks_sertifikat' => ['nullable', 'string', 'max:1000'],
             'teks_sertifikat_official' => ['nullable', 'string', 'max:1000'],
+            'legalisir_jumlah_copy' => ['nullable', 'integer', 'min:1', 'max:20'],
             'logo_kiri' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'logo_kanan' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'background_sertifikat' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
@@ -45,6 +46,9 @@ class PengaturanRequest extends FormRequest
             'logo_kiri.max' => 'Ukuran logo kiri maksimal 2 MB.',
             'logo_kanan.max' => 'Ukuran logo kanan maksimal 2 MB.',
             'background_sertifikat.max' => 'Ukuran background maksimal 2 MB.',
+            'legalisir_jumlah_copy.integer' => 'Jumlah copy legalisir harus berupa angka bulat.',
+            'legalisir_jumlah_copy.min' => 'Jumlah copy legalisir minimal 1.',
+            'legalisir_jumlah_copy.max' => 'Jumlah copy legalisir maksimal 20.',
         ];
     }
 }

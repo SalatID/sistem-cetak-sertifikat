@@ -5,8 +5,9 @@
 | DBMS | MySQL 8.x / MariaDB 10.11+ |
 | Engine | InnoDB (semua tabel) |
 | Charset | `utf8mb4`, collation `utf8mb4_unicode_ci` |
-| Version | 1.4 |
-| Terkait | `INDEX.md`, `PRD.md`, `TRD.md` |
+| Version | 1.6 |
+| Tanggal | 28 Oktober 2026 |
+| Terkait | `INDEX.md`, `PRD.md`, `TRD.md`, `LEGALISIR_PLAN.md` |
 
 ---
 
@@ -63,11 +64,12 @@ erDiagram
     PRINT_LOGS {
         bigint id PK
         bigint user_id FK
-        varchar jenis_dokumen "sertifikat_peserta|sk_juara|sertifikat_official|sertifikat_sekolah"
+        varchar jenis_dokumen "sertifikat_peserta|sk_juara|sertifikat_official|sertifikat_sekolah|legalisir"
         bigint peserta_id FK "nullable"
         bigint official_id FK "nullable"
         bigint kontingen_id FK "nullable"
-        int jumlah_data
+        int jumlah_data "jumlah sertifikat"
+        int jumlah_copy "copy per sertifikat, default 1"
         varchar nomor_sk "nullable"
         varchar konteks "ringkasan nama tercetak"
         timestamp created_at
@@ -79,10 +81,23 @@ erDiagram
         int jumlah_cetak "default 0"
         timestamp timestamps
     }
+    STEMPEL_LEGALISIRS {
+        bigint id PK
+        varchar nama UK "nama desain stempel"
+        varchar gambar "path disk public"
+        decimal x_mm "posisi dari kiri"
+        decimal y_mm "posisi dari atas"
+        decimal lebar_mm
+        decimal tinggi_mm
+        tinyint aktif "1 = bisa dipilih"
+        timestamp timestamps
+    }
 ```
 
 > **Keputusan desain:** identitas kejuaraan (nama, penyelenggara, tanggal, logo, dll.) TIDAK dibuat tabel terpisah, melainkan disimpan di `settings` (key-value), karena asumsi biznis: satu instalan = satu kejuaraan aktif (PRD §8/§10).
 > **Keputusan penomoran:** `no_sertifikat` dibuat **lazy** di kolom `pesertas` (MAX+1 saat cetak pertama, dipakai ulang bila sudah ada — tanpa tabel counter); hanya **Juara 1/2/3 dan Pesilat Terbaik** yang berhak mendapat nomor, sedangkan label **Peserta** tidak (nomor lama dikosongkan oleh migrasi `2026_10_23_000009`). `no_sk` diinput manual panitia di baris peserta. Cetak bisa satuan maupun bulk; **satu peserta = satu halaman SK**, `no_sk` hanya label dan boleh kosong. Di `/cetak`, juara 1/2/3 & Pesilat Terbaik mengalokasikan nomor MAX+1; label **Peserta** tetap dicetak tanpa nomor (`NULL`).
+>
+> **Keputusan legalisir:** stempel disimpan terpisah di `stempel_legalisirs` (satu desain = satu posisi tetap, tanpa relasi ke peserta); `print_logs.jumlah_copy` mencatat copy per sertifikat sehingga total halaman = `jumlah_data × jumlah_copy`.
 
 ---
 
@@ -197,6 +212,8 @@ CREATE TABLE `settings` (
 | `nama_ttd` | `H. Ahmad Wijaya, S.Pd` | blok penandatangan |
 | `jabatan_ttd` | `Ketua Panitia` | blok penandatangan |
 | `kota_ttd` | `X` | "Ditetapkan di …" |
+| `varian_pemasalan` | `Pra Usia Dini, Usia Dini 1` | penentuan varian teks otomatis |
+| `legalisir_jumlah_copy` | `2` | copy per sertifikat legalisir (1–20) |
 
 Placeholder yang didukung: `{NOMOR_SERTIFIKAT}`, `{NAMA}`, `{JUARA_ANGKA}`, `{JUARA_ROMAWI}`, `{KATEGORI}`, `{KELAS}`, `{KONTINGEN}`, `{JABATAN}`. Nomor SK tidak digenerate sistem — ditulis langsung dari `pesertas.no_sk`.
 
@@ -206,11 +223,12 @@ Placeholder yang didukung: `{NOMOR_SERTIFIKAT}`, `{NAMA}`, `{JUARA_ANGKA}`, `{JU
 CREATE TABLE `print_logs` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id`       BIGINT UNSIGNED NULL,   -- NULL = cetak tanpa login (tamu)
-  `jenis_dokumen` VARCHAR(40) NOT NULL,  -- sertifikat_peserta | sk_juara | sertifikat_official | sertifikat_sekolah
+  `jenis_dokumen` VARCHAR(40) NOT NULL,  -- sertifikat_peserta | sk_juara | sertifikat_official | sertifikat_sekolah | legalisir
   `peserta_id`    BIGINT UNSIGNED NULL,   -- hanya diisi bila cetak 1 peserta
   `official_id`   BIGINT UNSIGNED NULL,   -- hanya diisi bila cetak 1 official
   `kontingen_id`  BIGINT UNSIGNED NULL,   -- denormalisasi untuk filter riwayat per kontingen
-  `jumlah_data`   INT UNSIGNED    NOT NULL DEFAULT 1,  -- jumlah halaman/judul dalam PDF
+  `jumlah_data`   INT UNSIGNED    NOT NULL DEFAULT 1,  -- jumlah sertifikat/peserta dalam PDF
+  `jumlah_copy`   INT UNSIGNED    NOT NULL DEFAULT 1,  -- copy per sertifikat; total halaman = jumlah_data × jumlah_copy
   `nomor_sk`      VARCHAR(100)    NULL,   -- diisi jika jenis = sk_juara
   `konteks`       VARCHAR(500)    NULL,   -- ringkasan: nama-nama yang tercetak
   `created_at`    TIMESTAMP NULL DEFAULT NULL,  -- WIB (Asia/Jakarta)
@@ -331,6 +349,28 @@ CREATE TABLE `sekolahs` (
 
 > Sertifikat sekolah **tidak memiliki nomor sertifikat**. `terakhir_dicetak_at` dan `jumlah_cetak` diperbarui setiap kali admin mencetak dari `/sekolah`; `print_logs` mencatat `jenis_dokumen = 'sertifikat_sekolah'` dan `konteks = nama sekolah`.
 
+### 2.11 `stempel_legalisirs` — desain & posisi stempel legalisir
+
+```sql
+CREATE TABLE `stempel_legalisirs` (
+  `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `nama`       VARCHAR(150)    NOT NULL,   -- nama desain, unik
+  `gambar`     VARCHAR(255)    NOT NULL,   -- path relatif di storage/app/public (mis. stempel-legalisir/xxx.png)
+  `x_mm`       DECIMAL(6,2)    NOT NULL DEFAULT 237.00,  -- posisi dari kiri halaman
+  `y_mm`       DECIMAL(6,2)    NOT NULL DEFAULT 20.00,   -- posisi dari atas halaman
+  `lebar_mm`   DECIMAL(6,2)    NOT NULL DEFAULT 40.00,
+  `tinggi_mm`  DECIMAL(6,2)    NOT NULL DEFAULT 40.00,
+  `aktif`      TINYINT(1)      NOT NULL DEFAULT 1,
+  `created_at` TIMESTAMP       NULL DEFAULT NULL,
+  `updated_at` TIMESTAMP       NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `stempel_legalisirs_nama_unique` (`nama`),
+  KEY `stempel_legalisirs_aktif_index` (`aktif`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+> **Satu desain = satu posisi.** Tidak ada relasi ke peserta atau log; posisi divalidasi aplikasi terhadap ukuran blangko peserta aktif (fallback 297 × 210 mm). Hanya stempel `aktif` yang muncul di halaman legalisir dan lolos validasi cetak. Gambar disimpan di disk `public` folder `stempel-legalisir/`; PNG transparan disarankan. Satu sertifikat memakai tepat satu stempel.
+
 ---
 
 ## 3. Aturan Integritas Ringkas
@@ -345,6 +385,8 @@ CREATE TABLE `sekolahs` (
 | print_logs → pesertas / officials / kontingens | SET NULL | CASCADE | Log tetap ada walau subjek dihapus |
 | settings | tanpa FK | — | Key-value standalone |
 | sekolahs | tanpa FK | — | Daftar sekolah standalone; nama UNIQUE |
+| stempel_legalisirs | tanpa FK | — | Desain stempel standalone; posisi divalidasi aplikasi terhadap ukuran halaman |
+| print_logs.jumlah_copy | — | — | Default 1; total halaman dihitung aplikasi (`jumlah_data × jumlah_copy`) |
 | pesertas.no_sertifikat | UNIQUE | — | Anti nomor ganda saat lazy-assign paralel |
 | pesertas.juara | VARCHAR(100) NULL, tanpa CHECK | — | Teks bebas: `Peserta`, `Pesilat Terbaik`, `Juara 1`, atau nilai lama `1`/`2`/`3` |
 
@@ -359,6 +401,8 @@ CREATE TABLE `sekolahs` (
 | Dropdown kontingen (FR-04/FR-08) | `SELECT id, nama FROM kontingens ORDER BY nama` (PK ter-cover, imun ke ukuran) |
 | Riwayat cetak (FR-09) | `SELECT pl.*, u.name FROM print_logs pl JOIN users u ON u.id=pl.user_id ORDER BY pl.created_at DESC` |
 | Daftar sekolah + status cetak (FR-18) | `SELECT * FROM sekolahs ORDER BY terakhir_dicetak_at IS NULL, terakhir_dicetak_at DESC, nama` |
+| Pilihan stempel legalisir (FR-19) | `SELECT * FROM stempel_legalisirs WHERE aktif=1 ORDER BY nama` (index `aktif`) |
+| Riwayat legalisir + total halaman (FR-19) | `SELECT *, jumlah_data*jumlah_copy AS total_halaman FROM print_logs WHERE jenis_dokumen='legalisir'` |
 | Penomoran sertifikat (FR-06) | transaksi + `GET_LOCK('scs_no_sertifikat')` + `SELECT MAX(no_sertifikat) FROM pesertas` |
 
 Semua filter kolom sudah diindex (`nama` kontingen unique, `kategori`, `juara`, `no_sertifikat` UNIQUE, `created_at` log).
@@ -392,6 +436,8 @@ database/migrations/
   2026_10_23_000010_shift_print_log_timestamps_to_wib.php      (log lama UTC → WIB)
   2026_10_27_000001_create_sekolahs_table.php                  (tabel sekolahs)
   2026_10_27_000002_add_sertifikat_sekolah_types.php           (jenis blangko & log jadi VARCHAR + sertifikat_sekolah)
+  2026_10_28_000001_create_stempel_legalisirs_table.php        (tabel stempel_legalisirs)
+  2026_10_28_000002_add_jumlah_copy_to_print_logs_table.php    (kolom print_logs.jumlah_copy)
 ```
 
 Contoh migrasi `pesertas` (idem pola untuk tabel lain):
@@ -437,11 +483,14 @@ protected $fillable = ['setting_key','setting_value'];
 
 // PrintLog
 protected $fillable = ['user_id','jenis_dokumen','peserta_id','official_id',
-                       'kontingen_id','jumlah_data','nomor_sk','konteks'];
+                       'kontingen_id','jumlah_data','jumlah_copy','nomor_sk','konteks'];
 
 // Sekolah
 protected $table = 'sekolahs';
 protected $fillable = ['nama','terakhir_dicetak_at','jumlah_cetak'];
+
+// StempelLegalisir
+protected $fillable = ['nama','gambar','x_mm','y_mm','lebar_mm','tinggi_mm','aktif'];
 ```
 
 ---
@@ -484,7 +533,9 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 ('teks_sertifikat_official', 'Diberikan kepada {NAMA} selaku {JABATAN} Kontingen {KONTINGEN}.'),
 ('nama_ttd', 'H. Ahmad Wijaya, S.Pd'),
 ('jabatan_ttd', 'Ketua Panitia'),
-('kota_ttd', 'X');
+('kota_ttd', 'X'),
+('varian_pemasalan', 'Pra Usia Dini, Usia Dini 1'),
+('legalisir_jumlah_copy', '2');
 ```
 
 > Seeder Laravel: `AdminSeeder`, `SettingsSeeder` (wajib — aplikasi tidak boleh crash ketika key settings belum ada; helper `Setting::get($key, $default)` dengan fallback), `DemoSeeder` untuk data demo.
@@ -497,6 +548,8 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 |---|---|---|
 | Baris pesertas | 500–5.000 / kejuaraan | Full-scan tetap cepat < 1 detik dengan index |
 | Baris print_logs | ~ jumlah lembar tercetak × 1 | Dianjurkan arsip per tahun (DELETE manual via tinker saat reset musiman, bukan dari UI) |
+| Baris stempel_legalisirs | < 50 / event | Desain stempel jarang berubah; gambar di `storage/app/public/stempel-legalisir` |
+| Cache grayscale | `storage/app/legalisir` | Runtime-only; aman dihapus, dibuat ulang saat cetak |
 | Backup | `mysqldump` + copy `storage/app/public` | Sebelum event dan tiap akhir hari event |
 | Reset tahunan | TRUNCATE `pesertas`,`officials`,`print_logs`, update `settings` (nomor sertifikat otomatis mulai dari 1 lagi karena tabel kosong) | Fitur reset di UI = item M3 PRD |
 
@@ -506,11 +559,11 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 
 1. Apakah perlu kolom `no_urut_panggilan` atau `no_pertandingan` di `pesertas` untuk listing SK berurutan panggilan?
 2. Apakah perlu tabel `kejuaraans` bila di masa depan satu install menampung multi-event (agar skema tetap kompatibel)?
-| 3. Apakah ada kebutuhan sertifikat official **tanpa kontingen** (mis. official generik "Dewan Hakim")? Skema saat ini mewajibkan `kontingen_id`, sesuai flow user (dropdown dari kontingen terdaftar).
+3. Apakah ada kebutuhan sertifikat official **tanpa kontingen** (mis. official generik "Dewan Hakim")? Skema saat ini mewajibkan `kontingen_id`, sesuai flow user (dropdown dari kontingen terdaftar).
 
 ---
 
-## 9. Status Implementasi Skema (27 Oktober 2026)
+## 9. Status Implementasi Skema (28 Oktober 2026)
 
 | Tabel | Status | Catatan implementasi |
 |---|---|---|
@@ -518,13 +571,14 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 | `kontingens` | ✅ Terbuat | `nama` UNIQUE; relasi `CASCADE` ke pesertas & officials |
 | `pesertas` | ✅ Terbuat | Termasuk `no_sertifikat` UNIQUE (dipakai lazy saat cetak admin/tamu untuk Juara 1/2/3 & Pesilat Terbaik, sedangkan label Peserta tetap `NULL` lewat migrasi `2026_10_23_000009`) + `no_sk` (manual, hanya label nomor SK; bukan pengelompokan karena satu peserta = satu halaman); `juara` kini **VARCHAR(100) teks bebas** (migrasi `2026_10_23_000008`), nilai lama `1`/`2`/`3` tetap dipetakan ke label Emas/Perak/Perunggu |
 | `officials` | ✅ Terbuat & terpakai | Data demo ter-seed; form official + sertifikat official aktif (P3) |
-| `settings` | ✅ Terbuat | 9 key ter-seed (`SettingsSeeder`); key `nomor_sk_format` **dihapus** sesuai keputusan K5; kini aktif dipakai (identitas, logo, background, template teks) |
-| `print_logs` | ✅ Terbuat & terpakai | Setiap aksi cetak (sertifikat peserta / SK / sertifikat official / **sertifikat sekolah**) tercatat: user, jenis, subjek, jumlah, nomor SK, ringkasan nama. `jenis_dokumen` kini **VARCHAR(40)** (migrasi `2026_10_27_000002`), bukan ENUM; `user_id` **nullable** untuk mencatat cetak tamu (tanpa login); timestamp memakai **WIB** (`Asia/Jakarta`), log lama UTC digeser +7 jam oleh migrasi `2026_10_23_000010` |
+| `settings` | ✅ Terbuat | Key default ter-seed (`SettingsSeeder`), termasuk `varian_pemasalan` dan `legalisir_jumlah_copy`; key `nomor_sk_format` **dihapus** sesuai keputusan K5; kini aktif dipakai (identitas, logo, background, template teks, copy legalisir) |
+| `print_logs` | ✅ Terbuat & terpakai | Setiap aksi cetak (sertifikat peserta / SK / sertifikat official / **sertifikat sekolah** / **legalisir**) tercatat: user, jenis, subjek, jumlah, **copy**, nomor SK, ringkasan nama. `jenis_dokumen` kini **VARCHAR(40)** (migrasi `2026_10_27_000002`), bukan ENUM; `jumlah_copy` ditambahkan migrasi `2026_10_28_000002` (default 1); `user_id` **nullable** untuk mencatat cetak tamu (tanpa login); timestamp memakai **WIB** (`Asia/Jakarta`), log lama UTC digeser +7 jam oleh migrasi `2026_10_23_000010` |
 | `blangkos` | ✅ Terbuat & terpakai | Blangko dua mode (`canvas` / `blade`), jenis **`sertifikat` / `sk` / `sertifikat_sekolah`** (VARCHAR, migrasi `2026_10_27_000002`), ukuran kertas (`a4`/`f4`/`letter`/`custom`), orientasi, status aktif; hanya 1 aktif per jenis. `view_blade` menyimpan nama view template Blade (`NULL` untuk kanvas); `lebar_mm`/`tinggi_mm` diturunkan dari ukuran + orientasi |
 | `blangko_elemen` | ✅ Terbuat & terpakai | Kotak teks di atas blangko: posisi/ukuran mm, tipe (teks/data/varian/tabel), gaya; nama tabel disetel manual di model; field data `sekolah` tersedia untuk blangko sekolah |
 | `teks_varians` | ✅ Terbuat & terpakai | Varian isi teks per blangko (`prestasi`, `pemasalan`) — dipilih otomatis dari `pesertas.kelompok_usia` |
 | `sekolahs` | ✅ Terbuat & terpakai | Daftar sekolah penerima sertifikat ucapan terima kasih: `nama` UNIQUE, `terakhir_dicetak_at`, `jumlah_cetak`; tanpa nomor sertifikat; hanya admin yang mengelola & mencetak |
+| `stempel_legalisirs` | ✅ Terbuat & terpakai | Desain stempel legalisir: `nama` UNIQUE, `gambar`, posisi/ukuran mm, `aktif`; satu desain = satu posisi tetap; hanya admin; gambar di disk `public/stempel-legalisir` |
 
-**Seeder aktif:** `AdminSeeder` (akun `admin@sistem.test` & `operator@sistem.test`, password `password`), `SettingsSeeder` (default dokumen), `DemoSeeder` (3 kontingen, 5 peserta — 2 di antaranya belum punya `no_sertifikat` untuk mendemonstrasikan lazy-assign, 3 official).
+**Seeder aktif:** `AdminSeeder` (akun `admin@sistem.test` & `operator@sistem.test`, password `password`), `SettingsSeeder` (default dokumen + `legalisir_jumlah_copy = 2`), `DemoSeeder` (3 kontingen, 5 peserta — 2 di antaranya belum punya `no_sertifikat` untuk mendemonstrasikan lazy-assign, 3 official). **Jangan jalankan `SettingsSeeder` di database produksi** karena `updateOrCreate` dapat menimpa nilai yang sudah diubah admin; fallback `Setting::getValue('legalisir_jumlah_copy', 2)` sudah cukup.
 
 **Database:** `sistem_cetak_sertifikat` (aplikasi) & `sistem_cetak_sertifikat_test` (uji otomatis, tanpa ekstensi `pdo_sqlite` di mesin ini) — keduanya MySQL 8.0.30 / InnoDB / utf8mb4.

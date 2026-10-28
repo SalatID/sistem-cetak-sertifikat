@@ -1,5 +1,10 @@
 @extends('pdf.layouts.base-pdf')
 
+@php
+    $legalisir = $legalisir ?? false;
+    $stempel = $stempel ?? null;
+@endphp
+
 @section('title', 'Sertifikat Juara')
 
 @section('styles')
@@ -145,11 +150,32 @@
         text-align: center;
         font-size: 9.5pt;
     }
+
+    @if ($legalisir)
+        {!! \App\Services\LegalisirRenderer::cssGrayscale() !!}
+
+        .legalisir-grayscale {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 297mm;
+            height: 210mm;
+        }
+
+        .stempel-legalisir {
+            position: absolute;
+            z-index: 9999;
+        }
+    @endif
 @endsection
 
 @section('content')
     @foreach ($pesertas as $p)
         <div class="halaman">
+            @if ($legalisir)
+                <div class="legalisir-grayscale">
+            @endif
+
             @if (! empty($background))
                 <img src="{{ $background }}" class="latar" alt="">
             @endif
@@ -204,6 +230,16 @@
             </div>
 
             <div class="nomor-sertifikat">No. {{ $p['nomor'] }}</div>
+
+            @if ($legalisir)
+                </div>
+
+                @if (! empty($stempel['gambar']))
+                    <img src="{{ $stempel['gambar'] }}" class="stempel-legalisir" data-stempel-legalisir="1"
+                         alt=""
+                         style="left: {{ $stempel['x_mm'] }}mm; top: {{ $stempel['y_mm'] }}mm; width: {{ $stempel['lebar_mm'] }}mm; height: {{ $stempel['tinggi_mm'] }}mm;">
+                @endif
+            @endif
         </div>
     @endforeach
 @endsection

@@ -45,6 +45,10 @@
                    class="block rounded-lg px-3 py-2 font-medium {{ request()->routeIs('sekolah.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                     Sertifikat Sekolah
                 </a>
+                <a href="{{ route('legalisir.index') }}"
+                   class="block rounded-lg px-3 py-2 font-medium {{ request()->routeIs('legalisir.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    Legalisir
+                </a>
                 <a href="{{ route('pengaturan.index') }}"
                    class="block rounded-lg px-3 py-2 font-medium {{ request()->routeIs('pengaturan.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                     Pengaturan

@@ -27,7 +27,9 @@ class LogCetakController extends Controller
             'jenis' => $jenis,
             'dari' => $dari,
             'sampai' => $sampai,
-            'totalHalaman' => PrintLog::sum('jumlah_data'),
+            'totalHalaman' => (int) PrintLog::query()
+                ->selectRaw('COALESCE(SUM(jumlah_data * jumlah_copy), 0) as total')
+                ->value('total'),
         ]);
     }
 }

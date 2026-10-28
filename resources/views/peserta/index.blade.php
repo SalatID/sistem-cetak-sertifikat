@@ -138,6 +138,12 @@
                                    class="rounded-lg border border-indigo-300 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50">
                                     Cetak
                                 </a>
+                                @if (auth()->user()?->isAdmin())
+                                    <a href="{{ route('legalisir.index', ['ids' => [$row->id]]) }}"
+                                       class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">
+                                        Legalisir
+                                    </a>
+                                @endif
                             @endif
                             <a href="{{ route('peserta.edit', $row) }}"
                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
@@ -178,6 +184,12 @@
             class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900">
         Cetak SK Juara
     </button>
+    @if (auth()->user()?->isAdmin())
+        <button type="submit" formaction="{{ route('legalisir.index') }}" formtarget="_self"
+                class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+            Legalisir
+        </button>
+    @endif
     <div class="flex items-center gap-2">
         <label for="pakai_background" class="text-sm font-medium text-slate-600">Background sertifikat</label>
         <select id="pakai_background" name="pakai_background"
@@ -190,6 +202,9 @@
     <span class="text-xs text-slate-400">Label Peserta tetap bisa dicetak tanpa nomor sertifikat.</span>
     <span class="text-xs text-slate-400">SK tanpa No. SK tetap bisa dicetak dengan nomor kosong.</span>
     <span class="text-xs text-slate-400">Tamu selalu mencetak dengan background.</span>
+    @if (auth()->user()?->isAdmin())
+        <span class="text-xs text-slate-400">Legalisir: hitam putih + stempel, jumlah copy dari Pengaturan.</span>
+    @endif
 </form>
 
 <script>

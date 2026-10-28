@@ -2,10 +2,10 @@
 
 | Field | Nilai |
 |---|---|
-| Versi | 1.4 |
-| Tanggal | 23 Oktober 2026 |
+| Versi | 1.6 |
+| Tanggal | 28 Oktober 2026 |
 | Prasyarat Bagi | `PRD.md` |
-| Dokumen Terkait | `INDEX.md`, `DB_SCHEMA.md` |
+| Dokumen Terkait | `INDEX.md`, `DB_SCHEMA.md`, `LEGALISIR_PLAN.md` |
 
 ---
 
@@ -107,20 +107,23 @@ app/
     │   ├ KontingenController.php
     │   ├ PesertaController.php
     │   ├ OfficialController.php
-    │   ├ CetakController.php        ← semua endpoint PDF
+    │   ├ CetakController.php        ← endpoint PDF admin
+    │   ├ LegalisirController.php    ← pilih peserta, cetak legalisir, CRUD stempel
     │   ├ PengaturanController.php
     │   └ UserController.php
-    ├ Models/ (User, Kontingen, Peserta, Official, PrintLog, Setting)
-    ├ Requests/ (KontingenRequest, PesertaRequest, OfficialRequest, ...)
+    ├ Models/ (User, Kontingen, Peserta, Official, PrintLog, Setting, StempelLegalisir)
+    ├ Requests/ (KontingenRequest, PesertaRequest, OfficialRequest, StempelLegalisirRequest, ...)
+    ├ Services/ (NomorSertifikat, BlangkoRenderer, LegalisirRenderer, LayananCetak)
     └ Middleware/
 resources/
  ├ views/
  │   ├ layouts/app.blade.php        ← shell Tailwind + sidebar
  │   ├ web/
  │   │   ├ dashboard, kontingen/, peserta/, official/, pengaturan/, auth/login, log/
+ │   │   └ legalisir/{index,stempel/index,stempel/form}.blade.php
  │   └ pdf/                          ← NAMESPACE PDF (tanpa Tailwind!)
  │       ├ layouts/base-pdf.blade.php
- │       ├ sertifikat-peserta.blade.php
+ │       ├ sertifikat-peserta.blade.php  ← mendukung mode legalisir + stempel
  │       ├ sk-juara.blade.php
  │       └ sertifikat-official.blade.php
 routes/web.php
@@ -136,7 +139,7 @@ public/storage → storage/app/public (symlink)
 
 Skema lengkap (DDL, index, ERD): lihat **`DB_SCHEMA.md`**.
 
-Ringkas entitas: `users`, `kontingens`, `pesertas`, `officials`, `settings`, `print_logs`, `blangkos`, `blangko_elemen`, `teks_varians`, `sekolahs`.
+Ringkas entitas: `users`, `kontingens`, `pesertas`, `officials`, `settings`, `print_logs`, `blangkos`, `blangko_elemen`, `teks_varians`, `sekolahs`, `stempel_legalisirs`.
 
 Model & relasi ringkas:
 
@@ -148,6 +151,8 @@ Setting  = key-value (setting_key TEXT value) — helper Setting::get('nama_keju
 PrintLog polymorphic-lite (kolom peserta_id/official_id nullable + jenis_dokumen VARCHAR, bukan ENUM);
 Peserta.no_sertifikat = lazy MAX+1 saat cetak pertama (admin atau tamu `/cetak`) untuk Juara 1/2/3 & Pesilat Terbaik, dipakai ulang bila sudah ada; label Peserta tetap NULL; no_sk = input manual;
 Sekolah = nama unik + terakhir_dicetak_at + jumlah_cetak; tidak punya nomor sertifikat;
+StempelLegalisir = nama unik + gambar + posisi/ukuran mm + aktif; satu desain = satu posisi tetap;
+PrintLog.jumlah_copy = copy per sertifikat; total halaman = jumlah_data × jumlah_copy;
 User role: 'admin' | 'operator'  (gate `can('admin')` → gate `admin-only`)
 ```
 
@@ -176,11 +181,19 @@ Semua route di belakang middleware `auth` (grup), kecuali login. Tanpa prefix `/
 | DELETE | `/official/{id}` | `official.destroy` | OfficialController | |
 | GET | `/pengaturan` | `pengaturan.index` | PengaturanController (admin-only) | upload logo/background, template teks |
 | PUT | `/pengaturan` | `pengaturan.update` | PengaturanController (admin-only) | |
-| GET | `/log-cetak` | `log-cetak.index` | LogCetakController (admin-only) | filter tanggal, jenis (termasuk `sertifikat_sekolah`) |
+| GET | `/log-cetak` | `log-cetak.index` | LogCetakController (admin-only) | filter tanggal, jenis (termasuk `sertifikat_sekolah` & `legalisir`); total halaman = `jumlah_data × jumlah_copy` |
 | GET/POST | `/user` `/user/{id}` | `user.*` | UserController (admin-only) | kelola akun operator |
 | GET | `/sekolah` | `sekolah.index` | SekolahController@index (admin-only) | daftar sekolah + status cetak + pencarian `q` |
 | POST | `/sekolah` | `sekolah.store` | SekolahController@store (admin-only) | tambah sekolah (nama saja, unik) |
 | GET | `/cetak/sertifikat/sekolah/{sekolah}` | `cetak.sekolah.sertifikat` | CetakController@sertifikatSekolah (admin-only) | stream PDF ucapan terima kasih; **tanpa nomor sertifikat**; memakai blangko `sertifikat_sekolah` atau fallback |
+| GET | `/legalisir?ids[]=..` | `legalisir.index` | LegalisirController@index (admin-only) | halaman pilih peserta, satu stempel aktif, copy, total halaman; `ids` dibatasi 50 |
+| GET | `/legalisir/cetak?ids[]=..&stempel_id=..` | `legalisir.cetak` | LegalisirController@cetak (admin-only) | stream PDF **hitam putih** + 1 stempel; copy dari setting; batas 200 halaman; log `legalisir` |
+| GET | `/legalisir/stempel` | `legalisir.stempel.index` | LegalisirController@stempelIndex (admin-only) | daftar desain stempel + status aktif + posisi |
+| GET | `/legalisir/stempel/create` | `legalisir.stempel.create` | LegalisirController@stempelCreate (admin-only) | form stempel + preview posisi |
+| POST | `/legalisir/stempel` | `legalisir.stempel.store` | LegalisirController@stempelStore (admin-only) | upload gambar + simpan posisi |
+| GET | `/legalisir/stempel/{stempel}/edit` | `legalisir.stempel.edit` | LegalisirController@stempelEdit (admin-only) | edit stempel |
+| PUT | `/legalisir/stempel/{stempel}` | `legalisir.stempel.update` | LegalisirController@stempelUpdate (admin-only) | perbarui stempel |
+| DELETE | `/legalisir/stempel/{stempel}` | `legalisir.stempel.destroy` | LegalisirController@stempelDestroy (admin-only) | hapus stempel |
 
 **Multi-select tanpa JS framework:** Tabel di `peserta.index` dibungkus `<form method="GET" action="cetak">` dengan checkbox `name="ids[]"`. Tombol submit ganda: `formaction="cetak/sertifikat/peserta"` dan `formaction="cetak/sk"`. Vanilla JS kecil hanya untuk tombol "Select All", konfirmasi `confirm()`, dan menambahkan pilihan `pakai_background` ke tautan cetak per-baris. Selain itu, tiap baris punya tombol "Cetak" yang mengarah ke endpoint yang sama dengan `ids={id}` (mode satuan) — jadi **satuan dan bulk memakai satu path kode yang sama**, hanya beda jumlah id.
 
@@ -200,7 +213,7 @@ Semua route di belakang middleware `auth` (grup), kecuali login. Tanpa prefix `/
 
 - Login email+password, `session` file driver (lokal), regenerasi session id saat login (`$request->session()->regenerate()`).
 - Rate limit: `RateLimiter::for('login', 5 per minute by IP+email)`.
-- Middleware kecil `EnsureAdmin` → untuk route `/pengaturan`, `/log`, `/user`, `/blangko`, dan `/sekolah` (termasuk cetak sertifikat sekolah).
+- Middleware kecil `EnsureAdmin` → untuk route `/pengaturan`, `/log`, `/user`, `/blangko`, `/sekolah` (termasuk cetak sertifikat sekolah), dan `/legalisir` (termasuk cetak & CRUD stempel).
 - Gate: `Gate::define('admin', fn ($user) => $user->role === 'admin');`
 
 ### 6.2 Daftar Peserta + Filter (FR-05)
@@ -432,6 +445,43 @@ Admin → /sekolah → tambah nama sekolah → klik Cetak Sertifikat
   → PDF stream (tanpa nomor) → log + counter sekolah
 ```
 
+### 6.11 Legalisir Sertifikat Peserta (FR-19)
+
+Fitur khusus **admin** untuk mencetak sertifikat peserta versi **hitam putih** dengan **tepat satu stempel legalisir berwarna**. Rincian rencana & status ada di [`LEGALISIR_PLAN.md`](LEGALISIR_PLAN.md).
+
+| Aspek | Implementasi |
+|---|---|
+| Data stempel | Tabel `stempel_legalisirs`: `nama` (unique, 150), `gambar` (path relatif disk `public`), `x_mm`/`y_mm`/`lebar_mm`/`tinggi_mm` (DECIMAL 6,2), `aktif`, timestamps. Model `App\Models\StempelLegalisir` (cast float/boolean, scope `aktif`, `pathGambar()`, `urlGambar()`, `labelPosisi()`). |
+| Aturan posisi | **1 desain = 1 posisi tetap**, koordinat dari sudut kiri atas halaman. Batas divalidasi terhadap ukuran blangko peserta aktif; fallback 297 × 210 mm. |
+| Halaman pemilihan | `GET /legalisir?ids[]=...` menampilkan peserta terpilih, hanya 50 pertama, status layak cetak, stempel **aktif**, copy dari setting, total halaman, dan peringatan bila belum ada stempel / melebihi batas. |
+| Sumber peserta | Bulk dari checkbox `/peserta` atau tautan per baris; hanya **sertifikat peserta**. Peserta tanpa keterangan juara dilewati; bila semuanya tidak layak → `422`. |
+| Blangko | `Blangko::aktif(Blangko::JENIS_SERTIFIKAT)`; mendukung mode `canvas` maupun `blade`. Tanpa blangko aktif → fallback `pdf/sertifikat-peserta` (A4 landscape). |
+| Copy | Setting `legalisir_jumlah_copy` (default **2**, validasi 1–20). `LayananCetak::jumlahCopyLegalisir()` meng-clamp nilai. Total halaman = peserta valid × copy. |
+| Batas | Maks **50 peserta** per PDF (`ids.max:50`) dan **200 halaman** (`peserta valid × copy`). 50 × 4 = 200 masih boleh; 50 × 5 ditolak. |
+| Nomor sertifikat | `NomorSertifikat::assign()` dipanggil sebelum render; aturan lazy lama tidak berubah (Juara 1/2/3 & Pesilat Terbaik; label `Peserta` tetap `NULL`). |
+| Overlay stempel | `LayananCetak::dokumenLegalisir()` membungkus setiap halaman dengan `.legalisir-halaman` (ukuran mm blangko) + `.legalisir-grayscale` + `<img class="stempel-legalisir" data-stempel-legalisir="1">` berposisi absolut. Stempel berada **di luar** wrapper grayscale. |
+| Hitam putih | `LegalisirRenderer::grayscaleHtml()` mengonversi gambar lokal (`<img src>` dan CSS `url(...)`) ke PNG grayscale memakai **GD**, lalu mengganti path di HTML. Cache di `storage/app/legalisir/` (hash path + mtime); file runtime-only. CSS memaksa `color:#000`, `border-color:#000`, `background-color:#fff`, tanpa shadow. |
+| Pengecualian stempel | Tag dengan `data-stempel-legalisir="1"` dilewati saat pemindaian gambar, sehingga stempel tetap berwarna. |
+| Audit | `print_logs.jenis_dokumen = 'legalisir'`, `jumlah_data` = jumlah peserta, `jumlah_copy` = copy, `konteks` memuat nama + copy + nama stempel. Riwayat Cetak menampilkan `× N copy` dan total halaman `jumlah_data × jumlah_copy`. |
+| Nama file | `legalisir-{slug(nama-stempel)}-{Ymd-His}.pdf`. |
+| Otorisasi | Route di grup `auth` + `admin`; operator 403, tamu redirect login. Tidak ada permission baru. |
+
+**Alur cetak legalisir:**
+
+```text
+Admin /peserta → centang peserta → /legalisir?ids[]=...
+  → pilih 1 stempel aktif + copy (setting)
+  → validasi: peserta layak, stempel aktif & gambar ada, posisi dalam halaman, total ≤ 200
+  → NomorSertifikat::assign()
+  → render isi per peserta (kanvas/Blade/fallback), ulangi sebanyak copy
+  → bungkus halaman + overlay stempel (mm)
+  → LegalisirRenderer::grayscaleHtml()
+  → DOMPDF loadHTML() → stream PDF
+  → catat print_logs (legalisir + jumlah_copy)
+```
+
+**Catatan implementasi:** `LayananCetak::legalisir()` memeriksa ulang status stempel, keberadaan gambar, dan batas posisi (bisa berubah bila blangko diganti setelah stempel dibuat). `StempelLegalisirRequest` memakai `authorize()` admin dan `withValidator()` untuk memastikan `x_mm + lebar_mm` serta `y_mm + tinggi_mm` tidak melewati halaman.
+
 ---
 
 ## 7. Konfigurasi DOMPDF penting
@@ -461,7 +511,8 @@ Catatan anti-jebakan:
 | PesertaRequest | `kontingen_id: required|exists:kontingens,id`, `nama: required|string|max:150`, `jenis_kelamin: nullable|in:L,P`, `kategori: required|string|max:120`, `kelas: nullable|string|max:120`, `juara: nullable|string|max:100`, `no_sk: nullable|string|max:100` |
 | OfficialRequest | `nama: required|string|max:150`, `kontingen_id: required|exists:kontingens,id`, `jabatan: required|string|max:60` |
 | CetakIdsRequest | `ids: required|array|min:1|max:50`, `ids.*: integer|exists:pesertas,id` |
-| PengaturanRequest | masing-masing key + upload image rules |
+| PengaturanRequest | masing-masing key + upload image rules, termasuk `legalisir_jumlah_copy: nullable|integer|min:1|max:20` |
+| StempelLegalisirRequest | `nama: required|string|max:150|unique:stempel_legalisirs,nama{,id}`, `gambar: required(create)/nullable(update)|image|mimes:jpg,jpeg,png,webp|max:4096`, `x_mm`/`y_mm` numeric 0..dimensi halaman, `lebar_mm`/`tinggi_mm` numeric 5..dimensi halaman, `aktif: nullable|boolean`; validasi tambahan `x+lebar` & `y+tinggi` tidak melewati halaman |
 
 ---
 
@@ -595,6 +646,9 @@ powershell -ExecutionPolicy Bypass -File tools/p5-start.ps1
 |---|---|
 | Verifikasi visual PDF harus manual sekali | Template CSS diuji di DOMPDF; posisi nggak 100% pixel-perfect antar browser — bisa diterima karena yang dicetak konkuren dari server, bukan dari browser user. |
 | Batch 50 | DOMPDF memori; di atas itu perlu queue/loop chunk — out of scope MVP |
+| Legalisir 50 peserta / 200 halaman | PDF legalisir mengulang halaman sebanyak copy; batas 200 halaman menjaga stabilitas DOMPDF. Di atas itu ditolak `422` |
+| Copy legalisir 1–20 | Setting dibatasi 1–20; default 2. Total halaman tetap tunduk pada batas 200 |
+| Grayscale berbasis GD | Hanya memproses gambar lokal yang bisa dibaca GD (jpg/png/gif/webp); URL eksternal dibiarkan (DOMPDF `isRemoteEnabled=false`). Kualitas hasil mengikuti gambar sumber |
 | Nomor sertifikat permanen | Nomor ter-assign saat PDF pertama dibuat (admin atau tamu untuk Juara 1/2/3/Pesilat Terbaik) walau belum di-print fisik; nomor terkunci di data `pesertas` dan dipakai ulang selamanya. Label `Peserta` tidak di-assign. Jika salah input, nomor hanya bisa dikosongkan via edit data (query dirujuk di UI cetak) |
 | Single event | Tidak dukungan multi-kejuaraan paralel di satu install |
 
@@ -617,10 +671,11 @@ powershell -ExecutionPolicy Bypass -File tools/p5-start.ps1
 | UT-09 | Akses HTTPS via tunnel dari HP luar | Login normal, asset HTTPS, cookie secure |
 | UT-10 | Hapus kontingen yang punya peserta | Dialog konfirmasi + cascade hapus peserta |
 | UT-11 | Admin menambah sekolah & mencetak sertifikat sekolah | Sekolah tersimpan (nama unik); daftar menampilkan status/counter; PDF tanpa nomor; operator/tamu ditolak; log `sertifikat_sekolah` tercatat |
+| UT-12 | Admin mencetak legalisir 2 peserta, copy default 2, lalu copy 3 | PDF hitam putih dengan 1 stempel berwarna; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak |
 
-Uji otomatis: fitur controller utama (cetak PDF, lazy assignment nomor dengan 2 request paralel, SK satu peserta per halaman dengan `no_sk` opsional) sebagai Laravel Feature Test (PHPUnit/Pest); hasil PDF divalidasi manusia via cetak fisik.
+Uji otomatis: fitur controller utama (cetak PDF, lazy assignment nomor dengan 2 request paralel, SK satu peserta per halaman dengan `no_sk` opsional, legalisir hitam putih + copy + grayscale) sebagai Laravel Feature Test (PHPUnit/Pest); hasil PDF divalidasi manusia via cetak fisik.
 
-**Status test saat ini (27 Oktober 2026):** **123 test / 461 assertion — semua hijau** setelah P0–P7.
+**Status test saat ini (28 Oktober 2026):** **144 test / 533 assertion — semua hijau** setelah P0–P8.
 
 | Test | Cakupan |
 |---|---|
@@ -637,6 +692,7 @@ Uji otomatis: fitur controller utama (cetak PDF, lazy assignment nomor dengan 2 
 | `CetakPublikTest` | Halaman tamu tanpa login, paginasi 15/halaman, pencarian nama, cetak sertifikat & SK tamu (termasuk SK tanpa nomor), **cetak tamu Juara 1/2/3 & Pesilat Terbaik mengalokasikan nomor `MAX+1`; label `Peserta` tetap `NULL`**, **tamu selalu memakai background walau meminta `pakai_background=0`**, sertifikat official tamu, rate limit (request ke-31 → 429) |
 | `BlangkoTest` | Buat blangko + upload gambar, operator ditolak, simpan elemen (posisi/gaya), **edit elemen** (form & AJAX, tanpa duplikasi), **hapus elemen** (form & AJAX), elemen blangko lain tidak bisa dihapus, simpan varian, pemilihan varian otomatis per kelompok usia, renderer (data + varian + koordinat mm), cetak memakai blangko aktif, preview, **mode Blade** (pemindaian template & pengecualian halaman admin, buat blangko blade, wajib pilih file, tolak view di luar folder, kanvas tidak menyimpan `view_blade`, editor template, preview, render data + varian, **render `contoh-sbcc` dengan/tanpa background**, **background memakai path file (bukan base64)**, **render `contoh-sertifikat` tanpa background kop**, **cetak bulk `contoh-sbcc` 1 halaman/peserta**, **SK `contoh-sk-sbcc` satu halaman per peserta + background path file**, cetak SK 2 peserta = 2 halaman), **ukuran kertas** (dimensi preset A4/F4/Letter + orientasi, input mm manual diabaikan untuk preset, custom wajib isi dimensi, `MediaBox` PDF F4 sesuai mm) |
 | `SekolahTest` | Daftar sekolah + status cetak, tambah sekolah nama saja, duplikat ditolak, operator/tamu ditolak, cetak fallback tanpa blangko khusus, counter bertambah, blangko `sertifikat_sekolah` terpisah dari `sertifikat`, `dataSekolah()` tanpa nomor + template sekolah, pembuatan blangko jenis sekolah, filter riwayat `sertifikat_sekolah` |
+| `LegalisirTest` | Otorisasi admin/operator/tamu, halaman pilih peserta + stempel + copy default 2, CRUD stempel & validasi batas halaman, cetak 2 copy (2 halaman) dan 2 peserta × 3 copy (6 halaman), memakai blangko peserta aktif, peserta tanpa juara dilewati/ditolak, batas 200 halaman & 50 peserta, stempel nonaktif/gambar hilang/posisi di luar halaman ditolak, simpan setting copy 4 & validasi 0, log `legalisir` + `× 3 copy`, grayscale GD (R=G=B) dan tag stempel tidak diubah |
 
 > **Catatan cetak bulk:** template `contoh-sbcc` dan `contoh-sk-sbcc` memakai **path file absolut** untuk gambar latar, bukan base64. Base64 disalin ke setiap halaman; pada 50 halaman HTML bisa membengkak >300 MB dan memicu `Allowed memory size ... exhausted` di parser DOMPDF. Dengan path file, DOMPDF memuat gambar sekali (50 halaman ≈ 100 MB puncak, 1 gambar).
 >
@@ -683,9 +739,9 @@ Akun default (seed): `admin@sistem.test / password` (role admin) dan `operator@s
 
 ---
 
-## 14. Status Implementasi (P0–P4, P6, P7 selesai; P5 sebagian — Named Tunnel aktif, 27 Oktober 2026)
+## 14. Status Implementasi (P0–P4, P6, P7, P8 selesai; P5 sebagian — Named Tunnel aktif, 28 Oktober 2026)
 
-### 14.1 Peta File yang Sudah Dibuat
+### 14.1 Peta File Awal (P0–P3)
 
 ```
 app/
@@ -785,7 +841,26 @@ lang/id/{validation,auth,pagination}.php   pesan berbahasa Indonesia
 - `resources/views/pdf/sertifikat-sekolah.blade.php` — fallback PDF sekolah.
 - Sidebar **Sertifikat Sekolah**, filter Riwayat Cetak `sertifikat_sekolah`, dan `SekolahTest` (11 test).
 
-### 14.9 Utang Technical untuk Fase Berikutnya
+### 14.9 Yang Sudah Terpasang (P8 — Legalisir)
+
+- `database/migrations/2026_10_28_000001_create_stempel_legalisirs_table.php` — tabel desain stempel (nama unik, gambar, posisi/ukuran mm, aktif).
+- `database/migrations/2026_10_28_000002_add_jumlah_copy_to_print_logs_table.php` — kolom `print_logs.jumlah_copy` (default 1).
+- `app/Models/StempelLegalisir.php` — cast float/boolean, scope `aktif`, `pathGambar()`, `urlGambar()`, `labelPosisi()`.
+- `app/Http/Requests/StempelLegalisirRequest.php` — validasi CRUD stempel + batas halaman aktif.
+- `app/Http/Controllers/LegalisirController.php` — halaman pilih peserta/stempel/copy, endpoint cetak, CRUD stempel.
+- `app/Services/LayananCetak.php` — `legalisir()`, `jumlahCopyLegalisir()`, `dokumenLegalisir()`, `stempelHtml()`, `dataStempel()`, `mm()`, logging `jumlah_copy`.
+- `app/Services/LegalisirRenderer.php` — grayscale GD untuk `<img>` & CSS `url(...)`, pengecualian `data-stempel-legalisir`, cache `storage/app/legalisir`.
+- `resources/views/legalisir/index.blade.php` — pilih peserta, stempel, copy, total halaman.
+- `resources/views/legalisir/stempel/{index,form}.blade.php` — daftar & editor stempel + preview posisi.
+- `resources/views/pdf/sertifikat-peserta.blade.php` — dukungan opsional `legalisir` + overlay stempel.
+- `routes/web.php` — `/legalisir`, `/legalisir/cetak`, `/legalisir/stempel*` (grup `admin`).
+- `resources/views/layouts/app.blade.php` — menu **Legalisir**; `resources/views/peserta/index.blade.php` — tombol bulk & per baris.
+- `resources/views/pengaturan/index.blade.php` + `PengaturanController` + `PengaturanRequest` — setting `legalisir_jumlah_copy`.
+- `resources/views/log-cetak/index.blade.php` + `LogCetakController` — filter `legalisir`, tampilan copy, total halaman.
+- `database/seeders/SettingsSeeder.php` — default `legalisir_jumlah_copy = 2`.
+- `tests/Feature/LegalisirTest.php` — 21 test / 72 assertion.
+
+### 14.10 Utang Technical untuk Fase Berikutnya
 
 | Utang | tackled di |
 |---|---|

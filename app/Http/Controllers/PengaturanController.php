@@ -23,6 +23,7 @@ class PengaturanController extends Controller
         'jabatan_ttd',
         'kota_ttd',
         'varian_pemasalan',
+        'legalisir_jumlah_copy',
     ];
 
     /**
@@ -39,7 +40,10 @@ class PengaturanController extends Controller
         $values = [];
 
         foreach (array_merge(self::TEKS_KEYS, self::GAMBAR_KEYS) as $key) {
-            $values[$key] = Setting::getValue($key);
+            $values[$key] = Setting::getValue(
+                $key,
+                $key === 'legalisir_jumlah_copy' ? '2' : null,
+            );
         }
 
         return view('pengaturan.index', [

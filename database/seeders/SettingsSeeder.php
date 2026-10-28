@@ -20,6 +20,7 @@ class SettingsSeeder extends Seeder
             'jabatan_ttd' => 'Ketua Panitia',
             'kota_ttd' => 'X',
             'varian_pemasalan' => 'Pra Usia Dini, Usia Dini 1',
+            'legalisir_jumlah_copy' => '2',
         ];
 
         foreach ($defaults as $key => $value) {

@@ -6,6 +6,7 @@ use App\Http\Controllers\CetakController;
 use App\Http\Controllers\CetakPublikController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KontingenController;
+use App\Http\Controllers\LegalisirController;
 use App\Http\Controllers\LogCetakController;
 use App\Http\Controllers\OfficialController;
 use App\Http\Controllers\PengaturanController;
@@ -90,5 +91,15 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/sekolah', [SekolahController::class, 'index'])->name('sekolah.index');
         Route::post('/sekolah', [SekolahController::class, 'store'])->name('sekolah.store');
         Route::get('/cetak/sertifikat/sekolah/{sekolah}', [CetakController::class, 'sertifikatSekolah'])->name('cetak.sekolah.sertifikat');
+
+        // Legalisir sertifikat peserta — hitam putih + stempel (khusus admin).
+        Route::get('/legalisir', [LegalisirController::class, 'index'])->name('legalisir.index');
+        Route::get('/legalisir/cetak', [LegalisirController::class, 'cetak'])->name('legalisir.cetak');
+        Route::get('/legalisir/stempel', [LegalisirController::class, 'stempelIndex'])->name('legalisir.stempel.index');
+        Route::get('/legalisir/stempel/create', [LegalisirController::class, 'stempelCreate'])->name('legalisir.stempel.create');
+        Route::post('/legalisir/stempel', [LegalisirController::class, 'stempelStore'])->name('legalisir.stempel.store');
+        Route::get('/legalisir/stempel/{stempel}/edit', [LegalisirController::class, 'stempelEdit'])->name('legalisir.stempel.edit');
+        Route::put('/legalisir/stempel/{stempel}', [LegalisirController::class, 'stempelUpdate'])->name('legalisir.stempel.update');
+        Route::delete('/legalisir/stempel/{stempel}', [LegalisirController::class, 'stempelDestroy'])->name('legalisir.stempel.destroy');
     });
 });
