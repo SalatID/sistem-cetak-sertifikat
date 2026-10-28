@@ -96,7 +96,7 @@ Legenda: ✅ = lulus (otomatis/terverifikasi), ⏳ = menunggu uji manual, ⚠️
 | UT-09 | Akses HTTPS dari HP di luar jaringan | Login normal, aset HTTPS, cookie Secure | ⏳ | Sudah diuji dari mesin ini lewat `https://sbcc.my.id`; **perlu 1 HP dengan data seluler** |
 | UT-10 | Hapus kontingen | Peserta/official ikut terhapus | ✅ | `KontingenTest` (cascade) |
 | UT-11 | Sertifikat sekolah: admin tambah sekolah & cetak | Sekolah tersimpan (nama unik), PDF tanpa nomor, status/counter & log tercatat; operator/tamu ditolak | ✅ | `SekolahTest` (11 test / 42 assertion) |
-| UT-12 | Legalisir 2 peserta, copy default 2 lalu copy 3 | PDF hitam putih + 1 stempel berwarna; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak | ✅ otomatis / ⏳ fisik | `LegalisirTest` (22 test / 74 assertion) |
+| UT-12 | Legalisir 2 peserta, copy default 2 lalu copy 3 | PDF hitam putih + 1 stempel berwarna opacity 85%; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak | ✅ otomatis / ⏳ fisik | `LegalisirTest` (22 test / 74 assertion) |
 
 ---
 
@@ -118,7 +118,7 @@ Legenda: ✅ = lulus (otomatis/terverifikasi), ⏳ = menunggu uji manual, ⚠️
 | P5-12 | Named Tunnel + domain tetap | ✅ | `https://sbcc.my.id` (tunnel `sertifikat`, 4 koneksi, TLS valid) |
 | P5-13 | Cloudflare Access / WAF untuk area admin | ⏳ | **Belum diaktifkan**; disarankan sebelum URL dibagikan luas. Halaman `/cetak` harus tetap publik |
 | P5-14 | Autostart setelah reboot | ⏳ | Saat ini proses dijalankan manual lewat script; service/Task Scheduler belum dipasang |
-| P5-15 | Legalisir hitam putih + stempel | ✅ otomatis / ⏳ fisik | `LegalisirTest`: 2 copy = 2 halaman, 2 peserta × 3 copy = 6 halaman, grayscale R=G=B, background blangko utuh, stempel berwarna; cetak fisik & posisi stempel menunggu printer |
+| P5-15 | Legalisir hitam putih + stempel | ✅ otomatis / ⏳ fisik | `LegalisirTest`: 2 copy = 2 halaman, 2 peserta × 3 copy = 6 halaman, grayscale R=G=B, background blangko utuh, stempel berwarna dengan opacity 85%; cetak fisik & posisi stempel menunggu printer |
 
 ---
 

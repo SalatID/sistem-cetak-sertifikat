@@ -165,6 +165,7 @@
         .stempel-legalisir {
             position: absolute;
             z-index: 9999;
+            opacity: 0.85;
         }
     @endif
 @endsection

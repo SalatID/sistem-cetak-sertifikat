@@ -455,7 +455,7 @@ class LayananCetak
             .' .legalisir-halaman:last-child { page-break-after:auto; }'
             .' .legalisir-grayscale { position:absolute; top:0; left:0; width:100%; height:100%; }'
             .LegalisirRenderer::cssGrayscale()
-            .' .stempel-legalisir { position:absolute; z-index:9999; }';
+            .' .stempel-legalisir { position:absolute; z-index:9999; opacity:0.85; }';
 
         $html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'.$css.'</style></head><body>';
 

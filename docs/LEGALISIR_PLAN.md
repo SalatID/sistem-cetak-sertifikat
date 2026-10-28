@@ -169,6 +169,7 @@ Tag stempel diberi atribut `data-stempel-legalisir="1"`. Renderer **melewati** t
 
 - Sertifikat/blangko/logo menjadi hitam putih.
 - Stempel tetap berwarna sesuai unggahan admin.
+- Stempel diberi **opacity 85%** agar menyatu dengan cetakan hitam putih tanpa menutupi teks di bawahnya.
 - Stempel ditempatkan **di luar** wrapper `.legalisir-grayscale` agar tidak terkena aturan CSS grayscale.
 
 ### 5.4 Alur render

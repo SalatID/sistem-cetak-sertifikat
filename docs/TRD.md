@@ -459,7 +459,7 @@ Fitur khusus **admin** untuk mencetak sertifikat peserta versi **hitam putih** d
 | Copy | Setting `legalisir_jumlah_copy` (default **2**, validasi 1–20). `LayananCetak::jumlahCopyLegalisir()` meng-clamp nilai. Total halaman = peserta valid × copy. |
 | Batas | Maks **50 peserta** per PDF (`ids.max:50`) dan **200 halaman** (`peserta valid × copy`). 50 × 4 = 200 masih boleh; 50 × 5 ditolak. |
 | Nomor sertifikat | `NomorSertifikat::assign()` dipanggil sebelum render; aturan lazy lama tidak berubah (Juara 1/2/3 & Pesilat Terbaik; label `Peserta` tetap `NULL`). |
-| Overlay stempel | `LayananCetak::dokumenLegalisir()` membungkus setiap halaman dengan `.legalisir-halaman` (ukuran mm blangko) + `.legalisir-grayscale` + `<img class="stempel-legalisir" data-stempel-legalisir="1">` berposisi absolut. Stempel berada **di luar** wrapper grayscale. |
+| Overlay stempel | `LayananCetak::dokumenLegalisir()` membungkus setiap halaman dengan `.legalisir-halaman` (ukuran mm blangko) + `.legalisir-grayscale` + `<img class="stempel-legalisir" data-stempel-legalisir="1">` berposisi absolut dengan **opacity 85%**. Stempel berada **di luar** wrapper grayscale. |
 | Hitam putih | `LegalisirRenderer::grayscaleHtml()` mengonversi gambar lokal (`<img src>` dan CSS `url(...)`) ke PNG grayscale memakai **GD**, lalu mengganti path di HTML. Cache di `storage/app/legalisir/` (hash path + mtime); file runtime-only. CSS memaksa `color:#000`, `border-color:#000`, `background-color:transparent` pada isi (agar background blangko tidak tertutup kotak putih), wrapper `.legalisir-grayscale` tetap putih, tanpa shadow. |
 | Pengecualian stempel | Tag dengan `data-stempel-legalisir="1"` dilewati saat pemindaian gambar, sehingga stempel tetap berwarna. |
 | Audit | `print_logs.jenis_dokumen = 'legalisir'`, `jumlah_data` = jumlah peserta, `jumlah_copy` = copy, `konteks` memuat nama + copy + nama stempel. Riwayat Cetak menampilkan `× N copy` dan total halaman `jumlah_data × jumlah_copy`. |
@@ -671,7 +671,7 @@ powershell -ExecutionPolicy Bypass -File tools/p5-start.ps1
 | UT-09 | Akses HTTPS via tunnel dari HP luar | Login normal, asset HTTPS, cookie secure |
 | UT-10 | Hapus kontingen yang punya peserta | Dialog konfirmasi + cascade hapus peserta |
 | UT-11 | Admin menambah sekolah & mencetak sertifikat sekolah | Sekolah tersimpan (nama unik); daftar menampilkan status/counter; PDF tanpa nomor; operator/tamu ditolak; log `sertifikat_sekolah` tercatat |
-| UT-12 | Admin mencetak legalisir 2 peserta, copy default 2, lalu copy 3 | PDF hitam putih dengan 1 stempel berwarna; background blangko utuh; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak |
+| UT-12 | Admin mencetak legalisir 2 peserta, copy default 2, lalu copy 3 | PDF hitam putih dengan 1 stempel berwarna opacity 85%; background blangko utuh; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak |
 
 Uji otomatis: fitur controller utama (cetak PDF, lazy assignment nomor dengan 2 request paralel, SK satu peserta per halaman dengan `no_sk` opsional, legalisir hitam putih + copy + grayscale) sebagai Laravel Feature Test (PHPUnit/Pest); hasil PDF divalidasi manusia via cetak fisik.
 
