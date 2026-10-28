@@ -464,4 +464,12 @@ class LegalisirTest extends TestCase
 
         @unlink($hasil);
     }
+
+    public function test_css_grayscale_tidak_menutup_background_blangko(): void
+    {
+        $css = LegalisirRenderer::cssGrayscale();
+
+        $this->assertStringContainsString('background-color:transparent !important;', $css);
+        $this->assertStringContainsString('.legalisir-grayscale { background-color:#fff !important; }', $css);
+    }
 }

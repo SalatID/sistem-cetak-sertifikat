@@ -4,7 +4,7 @@
 |---|---|
 | Proyek | Sistem Cetak Sertifikat (SCS) |
 | Fitur | Legalisir sertifikat peserta (hitam putih + stempel) |
-| Status | ✅ **Terimplementasi** — 21 test legalisir hijau |
+| Status | ✅ **Terimplementasi** — 22 test legalisir hijau |
 | Tanggal | 28 Oktober 2026 |
 | Dokumen terkait | [`PRD.md`](PRD.md), [`TRD.md`](TRD.md), [`DB_SCHEMA.md`](DB_SCHEMA.md), [`UAT_P5.md`](UAT_P5.md) |
 
@@ -159,7 +159,8 @@ Dengan default 2 copy, 50 peserta menghasilkan 100 halaman. Kombinasi 50 peserta
 2. **CSS paksa hitam putih** untuk teks, border, dan background:
    - `color:#000 !important`
    - `border-color:#000 !important`
-   - `background-color:#fff !important`
+   - `background-color:transparent !important` pada isi, agar kotak teks tidak menutup background blangko
+   - wrapper `.legalisir-grayscale` diberi `background-color:#fff !important`
    - `text-shadow:none`, `box-shadow:none`
 
 ### 5.3 Pengecualian stempel
@@ -273,7 +274,7 @@ Contoh: `legalisir-stempel-panitia-20261028-143501.pdf`.
 
 ### 9.1 Test otomatis
 
-`tests/Feature/LegalisirTest.php` — **21 test / 72 assertion**:
+`tests/Feature/LegalisirTest.php` — **22 test / 74 assertion**:
 
 | Kelompok | Cakupan |
 |---|---|
@@ -287,11 +288,11 @@ Contoh: `legalisir-stempel-panitia-20261028-143501.pdf`.
 | Stempel | nonaktif ditolak, gambar hilang ditolak, posisi di luar halaman ditolak |
 | Pengaturan | simpan copy 4, validasi 0 ditolak |
 | Log | jenis legalisir + `× 3 copy` tampil |
-| Grayscale | gambar berwarna menjadi R=G=B; tag stempel tidak diubah |
+| Grayscale | gambar berwarna menjadi R=G=B; tag stempel tidak diubah; background blangko tidak tertutup kotak putih |
 
 ### 9.2 Suite penuh
 
-- **144/144 test hijau**, **533 assertion**.
+- **145/145 test hijau**, **535 assertion**.
 - `vendor/bin/pint --dirty` lolos.
 - `npm run build` lolos.
 
@@ -355,6 +356,6 @@ php artisan optimize:clear
 | Halaman pilih legalisir & CRUD stempel | ✅ |
 | Grayscale GD + pengecualian stempel | ✅ |
 | Pengaturan copy & Riwayat Cetak | ✅ |
-| Test otomatis | ✅ 21 test / 72 assertion |
-| Suite penuh | ✅ 144 test / 533 assertion |
+| Test otomatis | ✅ 22 test / 74 assertion |
+| Suite penuh | ✅ 145 test / 535 assertion |
 | UAT cetak fisik | ⏳ Menunggu printer & kertas blanko asli |

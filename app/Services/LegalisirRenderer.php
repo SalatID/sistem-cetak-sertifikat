@@ -26,10 +26,11 @@ class LegalisirRenderer
         return '.legalisir-grayscale, .legalisir-grayscale * {'
             .' color:#000 !important;'
             .' border-color:#000 !important;'
-            .' background-color:#fff !important;'
+            .' background-color:transparent !important;'
             .' text-shadow:none !important;'
             .' box-shadow:none !important;'
             .'}'
+            .'.legalisir-grayscale { background-color:#fff !important; }'
             .'.legalisir-grayscale img { background-color:transparent !important; }';
     }
 

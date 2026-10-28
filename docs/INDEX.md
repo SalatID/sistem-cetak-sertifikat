@@ -131,7 +131,7 @@ flowchart TD
 | PRD | 1.6 | Draft — menunggu review | Tujuan S.M.A.R.T per fase (§3) & Implementation Plan (§11) sudah ada; **§11.5 memuat status implementasi & bukti validasi**; blangko dua mode (kanvas & Blade) dengan ukuran kertas A4/F4/Letter/Custom; **FR-18 Sertifikat Sekolah**; **FR-19 Legalisir** |
 | TRD | 1.6 | Draft | Stack aktual terverifikasi (Laravel 13.17, PHP 8.3.29, MySQL 8.0.30, DomPDF 3.1); **§14 memuat peta file P0–P8**; **§6.9 kontrak template Blade & ukuran kertas**, **§6.10 sertifikat sekolah**, **§6.11 legalisir** |
 | DB_SCHEMA | 1.6 | Draft | Semua tabel ter-migrasi di MySQL (termasuk `sekolahs` & `stempel_legalisirs`); **§9 memuat status implementasi skema**; `blangkos.mode`, `view_blade`, `ukuran_kertas`, `blangkos.jenis` & `print_logs.jenis_dokumen` VARCHAR; `print_logs.jumlah_copy` |
-| LEGALISIR_PLAN | 1.0 | Selesai | Rencana & status fitur legalisir: skema, alur, batas, grayscale GD, routing, 21 test |
+| LEGALISIR_PLAN | 1.0 | Selesai | Rencana & status fitur legalisir: skema, alur, batas, grayscale GD, routing, 22 test |
 | UAT_P5 | 1.2 | Berjalan — sebagian | Named Tunnel HTTPS `sbcc.my.id` lolos; checklist UT-01–UT-12 & P5, runbook, dan catatan keamanan |
 
 ### 5.1 Progres Implementasi Kode
@@ -145,10 +145,10 @@ flowchart TD
 | **P4 — Pengaturan, Log, User** | ✅ Selesai | Pengaturan dokumen + upload aset, riwayat cetak, manajemen user (khusus admin) |
 | **P6 — Cetak Guest & Blangko** | ✅ Selesai | Halaman tamu (daftar 15/halaman + pencarian + PDF, rate limit 30/jam/IP), blangko **dua mode**: desainer kanvas drag & drop (sertifikat & SK) **atau** template `.blade.php` dari `resources/views/blangko/`, ukuran kertas **A4/F4/Letter/Custom** (mm dihitung otomatis), varian teks otomatis per kelompok usia |
 | **P7 — Sertifikat Sekolah** | ✅ Selesai | Menu admin `/sekolah`, tambah sekolah nama saja, daftar status/counter, cetak PDF tanpa nomor, blangko `sertifikat_sekolah` terpisah, fallback `sert-sekolah.jpg`, log `sertifikat_sekolah`; `SekolahTest` 11 test |
-| **P8 — Legalisir** | ✅ Selesai | Menu admin `/legalisir` + `/legalisir/stempel`; pilih peserta/stempel/copy; PDF hitam putih + 1 stempel berwarna; copy default 2 (1–20); batas 50 peserta & 200 halaman; grayscale GD + cache; log `legalisir` + `jumlah_copy`; `LegalisirTest` 21 test / 72 assertion |
+| **P8 — Legalisir** | ✅ Selesai | Menu admin `/legalisir` + `/legalisir/stempel`; pilih peserta/stempel/copy; PDF hitam putih + 1 stempel berwarna; copy default 2 (1–20); batas 50 peserta & 200 halaman; grayscale GD + cache; log `legalisir` + `jumlah_copy`; `LegalisirTest` 22 test / 74 assertion |
 | **P5 — Deploy & UAT** | 🟡 Sebagian | **Named Tunnel aktif di `https://sbcc.my.id`** (Cloudflare, tunnel `sertifikat`): `/up`, `/login`, `/cetak` = 200; HTTP → 301 HTTPS; login admin via HTTPS + cookie `Secure`/`SameSite=Lax`; `/dashboard`, `/blangko`, preview = 200; PDF tamu 508 KB & PDF bulk 3 halaman 509 KB valid; akses admin tanpa login → 302; 4 koneksi tunnel; TLS `CN=sbcc.my.id`; script `tools/p5-start-named.ps1` / `p5-stop.ps1` berfungsi (Quick Tunnel tetap tersedia sebagai fallback). **Belum:** Cloudflare Access untuk admin, uji dari HP luar, cetak fisik A4/F4, cek typo 100 dokumen, backup/restore. Checklist: [`UAT_P5.md`](UAT_P5.md) |
 
-Rincian & bug yang ditemukan: **PRD §11.5**. Total test: **144/144 hijau** (533 assertion, TRD §12).
+Rincian & bug yang ditemukan: **PRD §11.5**. Total test: **145/145 hijau** (535 assertion, TRD §12).
 
 ### 5.2 Fitur Utama
 

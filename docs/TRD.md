@@ -460,7 +460,7 @@ Fitur khusus **admin** untuk mencetak sertifikat peserta versi **hitam putih** d
 | Batas | Maks **50 peserta** per PDF (`ids.max:50`) dan **200 halaman** (`peserta valid × copy`). 50 × 4 = 200 masih boleh; 50 × 5 ditolak. |
 | Nomor sertifikat | `NomorSertifikat::assign()` dipanggil sebelum render; aturan lazy lama tidak berubah (Juara 1/2/3 & Pesilat Terbaik; label `Peserta` tetap `NULL`). |
 | Overlay stempel | `LayananCetak::dokumenLegalisir()` membungkus setiap halaman dengan `.legalisir-halaman` (ukuran mm blangko) + `.legalisir-grayscale` + `<img class="stempel-legalisir" data-stempel-legalisir="1">` berposisi absolut. Stempel berada **di luar** wrapper grayscale. |
-| Hitam putih | `LegalisirRenderer::grayscaleHtml()` mengonversi gambar lokal (`<img src>` dan CSS `url(...)`) ke PNG grayscale memakai **GD**, lalu mengganti path di HTML. Cache di `storage/app/legalisir/` (hash path + mtime); file runtime-only. CSS memaksa `color:#000`, `border-color:#000`, `background-color:#fff`, tanpa shadow. |
+| Hitam putih | `LegalisirRenderer::grayscaleHtml()` mengonversi gambar lokal (`<img src>` dan CSS `url(...)`) ke PNG grayscale memakai **GD**, lalu mengganti path di HTML. Cache di `storage/app/legalisir/` (hash path + mtime); file runtime-only. CSS memaksa `color:#000`, `border-color:#000`, `background-color:transparent` pada isi (agar background blangko tidak tertutup kotak putih), wrapper `.legalisir-grayscale` tetap putih, tanpa shadow. |
 | Pengecualian stempel | Tag dengan `data-stempel-legalisir="1"` dilewati saat pemindaian gambar, sehingga stempel tetap berwarna. |
 | Audit | `print_logs.jenis_dokumen = 'legalisir'`, `jumlah_data` = jumlah peserta, `jumlah_copy` = copy, `konteks` memuat nama + copy + nama stempel. Riwayat Cetak menampilkan `× N copy` dan total halaman `jumlah_data × jumlah_copy`. |
 | Nama file | `legalisir-{slug(nama-stempel)}-{Ymd-His}.pdf`. |
@@ -671,11 +671,11 @@ powershell -ExecutionPolicy Bypass -File tools/p5-start.ps1
 | UT-09 | Akses HTTPS via tunnel dari HP luar | Login normal, asset HTTPS, cookie secure |
 | UT-10 | Hapus kontingen yang punya peserta | Dialog konfirmasi + cascade hapus peserta |
 | UT-11 | Admin menambah sekolah & mencetak sertifikat sekolah | Sekolah tersimpan (nama unik); daftar menampilkan status/counter; PDF tanpa nomor; operator/tamu ditolak; log `sertifikat_sekolah` tercatat |
-| UT-12 | Admin mencetak legalisir 2 peserta, copy default 2, lalu copy 3 | PDF hitam putih dengan 1 stempel berwarna; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak |
+| UT-12 | Admin mencetak legalisir 2 peserta, copy default 2, lalu copy 3 | PDF hitam putih dengan 1 stempel berwarna; background blangko utuh; halaman = peserta valid × copy (4 lalu 6); log `legalisir` + `jumlah_copy`; stempel nonaktif/gambar hilang/posisi di luar halaman ditolak; operator/tamu ditolak |
 
 Uji otomatis: fitur controller utama (cetak PDF, lazy assignment nomor dengan 2 request paralel, SK satu peserta per halaman dengan `no_sk` opsional, legalisir hitam putih + copy + grayscale) sebagai Laravel Feature Test (PHPUnit/Pest); hasil PDF divalidasi manusia via cetak fisik.
 
-**Status test saat ini (28 Oktober 2026):** **144 test / 533 assertion — semua hijau** setelah P0–P8.
+**Status test saat ini (28 Oktober 2026):** **145 test / 535 assertion — semua hijau** setelah P0–P8.
 
 | Test | Cakupan |
 |---|---|
@@ -692,7 +692,7 @@ Uji otomatis: fitur controller utama (cetak PDF, lazy assignment nomor dengan 2 
 | `CetakPublikTest` | Halaman tamu tanpa login, paginasi 15/halaman, pencarian nama, cetak sertifikat & SK tamu (termasuk SK tanpa nomor), **cetak tamu Juara 1/2/3 & Pesilat Terbaik mengalokasikan nomor `MAX+1`; label `Peserta` tetap `NULL`**, **tamu selalu memakai background walau meminta `pakai_background=0`**, sertifikat official tamu, rate limit (request ke-31 → 429) |
 | `BlangkoTest` | Buat blangko + upload gambar, operator ditolak, simpan elemen (posisi/gaya), **edit elemen** (form & AJAX, tanpa duplikasi), **hapus elemen** (form & AJAX), elemen blangko lain tidak bisa dihapus, simpan varian, pemilihan varian otomatis per kelompok usia, renderer (data + varian + koordinat mm), cetak memakai blangko aktif, preview, **mode Blade** (pemindaian template & pengecualian halaman admin, buat blangko blade, wajib pilih file, tolak view di luar folder, kanvas tidak menyimpan `view_blade`, editor template, preview, render data + varian, **render `contoh-sbcc` dengan/tanpa background**, **background memakai path file (bukan base64)**, **render `contoh-sertifikat` tanpa background kop**, **cetak bulk `contoh-sbcc` 1 halaman/peserta**, **SK `contoh-sk-sbcc` satu halaman per peserta + background path file**, cetak SK 2 peserta = 2 halaman), **ukuran kertas** (dimensi preset A4/F4/Letter + orientasi, input mm manual diabaikan untuk preset, custom wajib isi dimensi, `MediaBox` PDF F4 sesuai mm) |
 | `SekolahTest` | Daftar sekolah + status cetak, tambah sekolah nama saja, duplikat ditolak, operator/tamu ditolak, cetak fallback tanpa blangko khusus, counter bertambah, blangko `sertifikat_sekolah` terpisah dari `sertifikat`, `dataSekolah()` tanpa nomor + template sekolah, pembuatan blangko jenis sekolah, filter riwayat `sertifikat_sekolah` |
-| `LegalisirTest` | Otorisasi admin/operator/tamu, halaman pilih peserta + stempel + copy default 2, CRUD stempel & validasi batas halaman, cetak 2 copy (2 halaman) dan 2 peserta × 3 copy (6 halaman), memakai blangko peserta aktif, peserta tanpa juara dilewati/ditolak, batas 200 halaman & 50 peserta, stempel nonaktif/gambar hilang/posisi di luar halaman ditolak, simpan setting copy 4 & validasi 0, log `legalisir` + `× 3 copy`, grayscale GD (R=G=B) dan tag stempel tidak diubah |
+| `LegalisirTest` | Otorisasi admin/operator/tamu, halaman pilih peserta + stempel + copy default 2, CRUD stempel & validasi batas halaman, cetak 2 copy (2 halaman) dan 2 peserta × 3 copy (6 halaman), memakai blangko peserta aktif, peserta tanpa juara dilewati/ditolak, batas 200 halaman & 50 peserta, stempel nonaktif/gambar hilang/posisi di luar halaman ditolak, simpan setting copy 4 & validasi 0, log `legalisir` + `× 3 copy`, grayscale GD (R=G=B), background blangko tidak tertutup kotak putih (regresi CSS), dan tag stempel tidak diubah |
 
 > **Catatan cetak bulk:** template `contoh-sbcc` dan `contoh-sk-sbcc` memakai **path file absolut** untuk gambar latar, bukan base64. Base64 disalin ke setiap halaman; pada 50 halaman HTML bisa membengkak >300 MB dan memicu `Allowed memory size ... exhausted` di parser DOMPDF. Dengan path file, DOMPDF memuat gambar sekali (50 halaman ≈ 100 MB puncak, 1 gambar).
 >
@@ -858,7 +858,7 @@ lang/id/{validation,auth,pagination}.php   pesan berbahasa Indonesia
 - `resources/views/pengaturan/index.blade.php` + `PengaturanController` + `PengaturanRequest` — setting `legalisir_jumlah_copy`.
 - `resources/views/log-cetak/index.blade.php` + `LogCetakController` — filter `legalisir`, tampilan copy, total halaman.
 - `database/seeders/SettingsSeeder.php` — default `legalisir_jumlah_copy = 2`.
-- `tests/Feature/LegalisirTest.php` — 21 test / 72 assertion.
+- `tests/Feature/LegalisirTest.php` — 22 test / 74 assertion.
 
 ### 14.10 Utang Technical untuk Fase Berikutnya
 
